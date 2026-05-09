@@ -6,7 +6,8 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import type { Flower, FlowerType } from "./schema";
+import type { FlowerType } from "./schema";
+import type { Flower } from "./flower";
 export { DoubleSide, CatmullRomCurve3 };
 
 export const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));

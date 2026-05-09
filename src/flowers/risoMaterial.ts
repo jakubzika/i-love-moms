@@ -176,11 +176,11 @@ export function getFlowerPalette(type: FlowerType): RisoPalette {
 }
 
 export const STEM_PALETTE: RisoPalette = {
-  inks: ["#3d6b35", "#1f3a1c", "#a3c97a"],
+  inks: ["#9bbf7e", "#c5dca8", "#7fa66a"],
   paper: "#fbf3e0",
 };
 
-export function createRisoStemMaterial(baseColor = "#5fa052"): MeshStandardMaterial {
+export function createRisoStemMaterial(baseColor = "#a8c98a"): MeshStandardMaterial {
   return createRisoPetalMaterial({
     baseColor,
     palette: STEM_PALETTE,

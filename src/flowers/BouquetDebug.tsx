@@ -15,12 +15,8 @@ import {
   sizeScale,
   type Placement,
 } from "./generative";
-import {
-  ALL_FLOWER_TYPES,
-  defaultFlower,
-  type Flower,
-  type FlowerType,
-} from "./schema";
+import { ALL_FLOWER_TYPES, type FlowerType } from "./schema";
+import { defaultFlower, type Flower } from "./flower";
 import { FlowerHead } from "./index";
 import { createRisoStemMaterial } from "./risoMaterial";
 
@@ -39,7 +35,7 @@ function StemCurve({
     const c = makeBendableStemCurve(base, head, seed);
     const rand = mulberry32(seed);
     const r = 0.011 + rand() * 0.007;
-    const greens = ["#4a7a3a", "#5e8c45", "#3d6b35", "#6b9856", "#557a40", "#42713a"];
+    const greens = ["#a8c98a", "#bdd89e", "#94b97a", "#c0d6a8", "#a3c97a", "#9bbf7e"];
     const stem = greens[Math.floor(rand() * greens.length)];
     return {
       curve: c,

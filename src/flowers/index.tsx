@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Color, Quaternion, Vector3 } from "three";
-import { defaultFlower, type FlowerCard, type Flower } from "./schema";
+import type { FlowerCard } from "./schema";
+import { defaultFlower, type Flower } from "./flower";
 import { CARD_SIZE } from "./constants";
 import {
   DoubleSide,
@@ -552,12 +553,12 @@ function BendableStem({
         normal.clone().normalize(),
       );
       const greens = [
-        "#4a7a3a",
-        "#5e8c45",
-        "#3d6b35",
-        "#6b9856",
-        "#557a40",
-        "#42713a",
+        "#a8c98a",
+        "#bdd89e",
+        "#94b97a",
+        "#c0d6a8",
+        "#a3c97a",
+        "#9bbf7e",
       ];
       const stem = greens[Math.floor(rand() * greens.length)];
       return {
@@ -643,11 +644,10 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
       className="mx-auto overflow-hidden border relative"
       style={{ width: CARD_SIZE.width, height: CARD_SIZE.height }}
     >
-      <Canvas shadows>
+      <Canvas shadows frameloop="demand">
         <PerspectiveCamera
           makeDefault
-          position={[0, 8.5, 2.8]}
-          rotation={[-1.3, 0, 0]}
+          position={[8.33, 21.96, 9.07]}
           fov={35}
           near={0.1}
           far={50}
@@ -663,7 +663,20 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
           {/* <planeGeometry args={[20, 20]} /> */}
           <meshStandardMaterial color="#ffffff" />
         </mesh>
-        <OrbitControls makeDefault target={[0, 1.8, 0]} />
+        <OrbitControls
+          makeDefault
+          target={[0, 1.8, 0]}
+          onChange={(e) => {
+            const cam = e?.target.object;
+            if (!cam) return;
+            const p = cam.position;
+            const t = e.target.target;
+            // eslint-disable-next-line no-console
+            console.log(
+              `camera position=[${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}] target=[${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)}]`,
+            );
+          }}
+        />
       </Canvas>
       <div
         className="prose prose-sm text-white max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 backdrop-blur p-5 pointer-events-none"
