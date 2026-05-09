@@ -1,8 +1,8 @@
-import { Agent } from "@mastra/core/agent";
+import { FlowerCardSchema } from "@/flowers/schema";
 import { weatherTool } from "@/mastra/tools";
+import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-import { FlowerCardSchema } from "@/flowers/schema";
 
 export const FlowerCardStateSchema = FlowerCardSchema;
 
@@ -12,7 +12,7 @@ export const weatherAgent = new Agent({
   tools: { weatherTool },
   model: {
     providerId: "featherless",
-    modelId: "google/gemma-4-31B-it",
+    modelId: "deepseek-ai/DeepSeek-V4-Flash",
     url: "https://api.featherless.ai/v1",
     apiKey: process.env.FEATHERLESS_API_KEY,
   },
