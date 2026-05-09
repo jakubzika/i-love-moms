@@ -24,8 +24,26 @@ const initialCounts: Record<FlowerType, number> = {
   chrysanthemum: 0,
 };
 
-const initialHtml =
-  "<h2>Happy Mother's Day, Mom! 🌹</h2><p>Thanks for everything.</p>";
+const initialHtml = `
+<h1 style="font-family: 'Georgia', serif; font-size: 28px; margin: 0 0 8px;">
+  Happy Mother's Day
+</h1>
+<p style="font-family: 'Georgia', serif; font-style: italic; opacity: 0.85; margin: 0 0 14px;">
+  to the woman who made everything possible
+</p>
+<p style="font-family: 'Georgia', serif; line-height: 1.55; margin: 0 0 12px;">
+  Thank you for the warmth of your kitchen,<br/>
+  the patience in your eyes,<br/>
+  and the love you've quietly stitched into my life.
+</p>
+<p style="font-family: 'Georgia', serif; line-height: 1.55; margin: 0 0 18px;">
+  These flowers are barely a fraction of what you deserve,<br/>
+  but every one of them was chosen with you in mind.
+</p>
+<p style="font-family: 'Georgia', serif; text-align: right; margin: 0;">
+  — with all my love
+</p>
+`.trim();
 
 export default function FlowerCardForm() {
   const [counts, setCounts] =

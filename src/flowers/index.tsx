@@ -542,32 +542,31 @@ function BendableStem({
   flower: Flower;
   seed: number;
 }) {
-  const { curve, stemRadius, quaternion, stemColor } =
-    useMemo(() => {
-      const c = makeBendableStemCurve(base, head, seed);
-      const rand = mulberry32(seed);
-      const radius = 0.009 + rand() * 0.006;
-      const up = new Vector3(0, 1, 0);
-      const q = new Quaternion().setFromUnitVectors(
-        up,
-        normal.clone().normalize(),
-      );
-      const greens = [
-        "#a8c98a",
-        "#bdd89e",
-        "#94b97a",
-        "#c0d6a8",
-        "#a3c97a",
-        "#9bbf7e",
-      ];
-      const stem = greens[Math.floor(rand() * greens.length)];
-      return {
-        curve: c,
-        stemRadius: radius,
-        quaternion: q,
-        stemColor: stem,
-      };
-    }, [base, head, normal, seed]);
+  const { curve, stemRadius, quaternion, stemColor } = useMemo(() => {
+    const c = makeBendableStemCurve(base, head, seed);
+    const rand = mulberry32(seed);
+    const radius = 0.009 + rand() * 0.006;
+    const up = new Vector3(0, 1, 0);
+    const q = new Quaternion().setFromUnitVectors(
+      up,
+      normal.clone().normalize(),
+    );
+    const greens = [
+      "#a8c98a",
+      "#bdd89e",
+      "#94b97a",
+      "#c0d6a8",
+      "#a3c97a",
+      "#9bbf7e",
+    ];
+    const stem = greens[Math.floor(rand() * greens.length)];
+    return {
+      curve: c,
+      stemRadius: radius,
+      quaternion: q,
+      stemColor: stem,
+    };
+  }, [base, head, normal, seed]);
 
   const material = useMemo(
     () => createRisoStemMaterial(stemColor),
@@ -600,7 +599,7 @@ function BendableStem({
 function Bouquet({ card }: { card: FlowerCard }) {
   const expanded = useMemo(
     () =>
-      card.bouquet.flowers.flatMap((entry, ei) =>
+      (card.bouquet?.flowers ?? []).flatMap((entry, ei) =>
         Array.from({ length: Math.max(1, entry.count) }, (_, qi) => {
           const flower = defaultFlower(entry.type);
           return {
@@ -613,17 +612,21 @@ function Bouquet({ card }: { card: FlowerCard }) {
     [card],
   );
 
+  const baseY = 1.6;
+  const targetDomeR = 4.6;
   const { placements, domeR } = useMemo(() => {
     const seed = hashSeed(`bouquet:${expanded.length}`);
     return packBouquet(
       expanded.map((e) => e.flower),
       Math.floor(seed * 1e9),
-      { baseY: 1.6 },
+      { baseY },
     );
   }, [expanded]);
 
+  const scale = Math.min(4, Math.max(0.6, targetDomeR / Math.max(domeR, 0.2)));
+
   return (
-    <group>
+    <group position={[0, baseY * (1 - scale), 0]} scale={scale}>
       {placements.map((p, i) => (
         <BendableStem
           key={expanded[i].key}
@@ -647,7 +650,7 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
       <Canvas shadows frameloop="demand">
         <PerspectiveCamera
           makeDefault
-          position={[8.33, 21.96, 9.07]}
+          position={[12.24, 24.9, 12.95]}
           fov={35}
           near={0.1}
           far={50}
@@ -665,7 +668,7 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
         </mesh>
         <OrbitControls
           makeDefault
-          target={[0, 1.8, 0]}
+          target={[2.01, 0.15, 1.82]}
           onChange={(e) => {
             const cam = e?.target.object;
             if (!cam) return;
@@ -679,12 +682,13 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
         />
       </Canvas>
       <div
-        className="prose prose-sm text-white max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 backdrop-blur p-5 pointer-events-none"
+        className="prose prose-sm text-black max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 p-5 pointer-events-none overflow-hidden backdrop-blur-md bg-white/40"
         style={{
           width: "100%",
+          height: "33%",
           fontFamily: "Georgia, serif",
         }}
-        dangerouslySetInnerHTML={{ __html: card.content.htmlContent ?? "" }}
+        dangerouslySetInnerHTML={{ __html: card.content?.htmlContent ?? "" }}
       />
     </div>
   );
