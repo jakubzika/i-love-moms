@@ -26,8 +26,9 @@ const TYPE_DEFAULTS: Record<FlowerType, { color: string; size: FlowerSize }> = {
 };
 
 export function defaultFlower(type: FlowerType): Flower {
-  const d = TYPE_DEFAULTS[type];
-  return { type, color: d.color, size: d.size, quantity: 1 };
+  const d = TYPE_DEFAULTS[type] ?? TYPE_DEFAULTS.rose;
+  const safeType: FlowerType = TYPE_DEFAULTS[type] ? type : "rose";
+  return { type: safeType, color: d.color, size: d.size, quantity: 1 };
 }
 
 // Preset flowers with specific colors and sizes

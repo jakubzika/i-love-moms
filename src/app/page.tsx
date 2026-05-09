@@ -5,7 +5,11 @@ import {
   ToolConfirmationProvider,
   useHasActiveToolConfirmation,
 } from "@/components/tools/tool-confirmation";
-import { FlowerCardProvider } from "@/context/flower-card-context";
+import {
+  FlowerCardProvider,
+  useFlowerCard,
+} from "@/context/flower-card-context";
+import { BACKGROUND_PRESETS } from "@/flowers/backgrounds";
 import { FlowerPreview } from "@/flowers/flower-preview";
 import {
   CopilotChat,
@@ -28,38 +32,51 @@ export default function CopilotKitPage() {
 }
 
 function FlowerCardExperience() {
+  const { displayCard } = useFlowerCard();
+  const bg = BACKGROUND_PRESETS[displayCard.background];
+
   return (
-    <main className="flex h-screen overflow-hidden bg-neutral-100">
-      <div className="flex flex-1 items-center justify-center overflow-auto p-6">
+    <main className="relative flex h-screen overflow-hidden">
+      {/* ambient background layers tinted by current card */}
+      <div
+        className="absolute inset-0 -z-10 transition-all duration-700"
+        style={{ background: bg.css, opacity: 0.35, filter: "blur(80px)" }}
+      />
+      <div className="absolute inset-0 -z-10 bg-neutral-100/70" />
+
+      <div className="flex flex-1 items-center justify-center overflow-auto p-10">
         <FlowerTools />
         <FlowerPreview />
       </div>
 
-      <div className="w-xl border-l shadow-xl h-screen bg-white">
-        <div className="h-[3rem] px-5 flex items-center font-instrument text-xl font-bold">
-          Flower Copilot
+      <div className="w-xl h-screen bg-white/80 backdrop-blur-xl border-l border-black/5 shadow-2xl flex flex-col">
+        <div className="h-12 px-5 flex items-center gap-2 border-b border-black/5">
+          <Flower2 className="size-5 text-neutral-700" strokeWidth={1.8} />
+          <span className="font-instrument text-xl font-bold tracking-tight">
+            Flower Copilot
+          </span>
         </div>
         <CopilotChat
-          className="h-[calc(100vh-3rem)]"
+          className="flex-1 min-h-0"
           disableSystemMessage={true}
           Messages={FlowerChatMessages}
           RenderSuggestionsList={FlowerChatSuggestions}
           suggestions={[
             {
-              title: "Preset Choices",
-              message: "Show me complete preset choices for the flower card.",
+              title: "Card options",
+              message: "Show me three complete card design options I can choose from.",
             },
             {
-              title: "Flower Picker",
-              message: "Let me choose the flower types in the bouquet.",
+              title: "Change background",
+              message: "Change the card background to sage.",
             },
             {
-              title: "Preset Cards",
-              message: "Show me preset card messages.",
+              title: "Rewrite message",
+              message: "Rewrite the card message in a heartfelt, classic style.",
             },
             {
-              title: "Type Variations",
-              message: "Show me flower type variation presets.",
+              title: "Different bouquet",
+              message: "Suggest a few different bouquet variations I can pick from.",
             },
           ]}
         />

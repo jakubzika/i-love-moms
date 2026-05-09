@@ -42,7 +42,7 @@ export default function RootLayout({
         />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Lobster&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Bricolage+Grotesque:wght@400;600;700&family=Inter:wght@400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Caveat:wght@400;700&family=Fraunces:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@10..48,400;10..48,600;10..48,700&family=Instrument+Serif:ital@0;1&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@400;500;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600&display=swap"
         />
       </head>
       <body

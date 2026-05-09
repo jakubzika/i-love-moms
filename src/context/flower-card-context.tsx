@@ -2,20 +2,22 @@
 
 import { FLOWER_PRESETS } from "@/flowers/flower";
 import type { FlowerCard } from "@/flowers/schema";
-import { useCoAgent } from "@copilotkit/react-core";
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 const initialFlowerCard: FlowerCard = {
   content: {
-    htmlContent:
-      '<div class="theme-romantic-serif"><h1 class="card-title">Happy Mother\'s Day</h1><p class="card-content">Thank you for everything, Mom &mdash; today and every day.</p></div>',
+    title: "Happy Mother's Day",
+    body: "Thank you for everything, Mom — today and every day.",
+    signature: "— with all my love",
+    fontPairing: "editorial",
   },
   bouquet: {
     flowers: [
@@ -29,6 +31,7 @@ const initialFlowerCard: FlowerCard = {
 type FlowerCardContextValue = {
   state: FlowerCard;
   setState: (card: FlowerCard) => void;
+  getCard: () => FlowerCard;
   previewCard: FlowerCard | null;
   setPreviewCard: (card: FlowerCard | null) => void;
   activePreviewSessionId: string | null;
@@ -41,11 +44,10 @@ type FlowerCardContextValue = {
 const FlowerCardContext = createContext<FlowerCardContextValue | null>(null);
 
 export function FlowerCardProvider({ children }: { children: ReactNode }) {
-  const { state: agentState, setState: setAgentState } = useCoAgent<FlowerCard>({
-    name: "weatherAgent",
-    initialState: initialFlowerCard,
-  });
-  const [localCard, setLocalCard] = useState<FlowerCard | null>(null);
+  const [card, setCard] = useState<FlowerCard>(initialFlowerCard);
+  const cardRef = useRef(card);
+  cardRef.current = card;
+
   const [previewState, setPreviewState] = useState<{
     activePreviewSessionId: string | null;
     card: FlowerCard | null;
@@ -54,84 +56,55 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
     card: null,
   });
 
-  // Once the user commits a card via setState, localCard is authoritative.
-  // The agent's state can drift (or reset on a failed run) without affecting
-  // what the user sees. A future agent-driven update should call setState.
-
-  const committedState = localCard ?? agentState ?? initialFlowerCard;
-  const setState = useCallback(
-    (card: FlowerCard) => {
-      setLocalCard(card);
-      setAgentState(card);
-    },
-    [setAgentState],
-  );
-  const setPreviewCard = useCallback((card: FlowerCard | null) => {
-    setPreviewState((current) => ({
-      ...current,
-      card,
-    }));
+  const setState = useCallback((next: FlowerCard) => {
+    setCard(next);
   }, []);
+
+  const getCard = useCallback(() => cardRef.current, []);
+
+  const setPreviewCard = useCallback((next: FlowerCard | null) => {
+    setPreviewState((current) => ({ ...current, card: next }));
+  }, []);
+
   const beginPreviewSession = useCallback((sessionId: string) => {
-    console.log("[ctx] beginPreviewSession", { sessionId });
-    setPreviewState({
-      activePreviewSessionId: sessionId,
-      card: null,
-    });
+    setPreviewState({ activePreviewSessionId: sessionId, card: null });
   }, []);
-  const previewCardForSession = useCallback(
-    (sessionId: string, card: FlowerCard) => {
-      setPreviewState((current) => {
-        const matches = current.activePreviewSessionId === sessionId;
-        console.log("[ctx] previewCardForSession", {
-          sessionId,
-          activePreviewSessionId: current.activePreviewSessionId,
-          matches,
-          bg: card.background,
-        });
-        if (!matches) {
-          return current;
-        }
 
-        return {
-          ...current,
-          card,
-        };
+  const previewCardForSession = useCallback(
+    (sessionId: string, next: FlowerCard) => {
+      setPreviewState((current) => {
+        if (current.activePreviewSessionId !== sessionId) return current;
+        return { ...current, card: next };
       });
     },
     [],
   );
+
   const clearPreviewSession = useCallback((sessionId: string) => {
     setPreviewState((current) => {
-      const matches = current.activePreviewSessionId === sessionId;
-      console.log("[ctx] clearPreviewSession", { sessionId, matches });
-      if (!matches) {
-        return current;
-      }
-
-      return {
-        activePreviewSessionId: null,
-        card: null,
-      };
+      if (current.activePreviewSessionId !== sessionId) return current;
+      return { activePreviewSessionId: null, card: null };
     });
   }, []);
 
   const value = useMemo(
     () => ({
-      state: committedState,
+      state: card,
       setState,
+      getCard,
       previewCard: previewState.card,
       setPreviewCard,
       activePreviewSessionId: previewState.activePreviewSessionId,
       beginPreviewSession,
       previewCardForSession,
       clearPreviewSession,
-      displayCard: previewState.card ?? committedState,
+      displayCard: previewState.card ?? card,
     }),
     [
       beginPreviewSession,
+      card,
       clearPreviewSession,
-      committedState,
+      getCard,
       previewCardForSession,
       previewState.activePreviewSessionId,
       previewState.card,

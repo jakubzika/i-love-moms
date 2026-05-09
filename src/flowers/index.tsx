@@ -4,7 +4,7 @@ import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
 import { Color, Quaternion, Vector3 } from "three";
-import { getBackgroundCss } from "./backgrounds";
+import { BACKGROUND_PRESETS, getBackgroundCss } from "./backgrounds";
 import { CARD_SIZE } from "./constants";
 import { defaultFlower, type Flower } from "./flower";
 import {
@@ -644,6 +644,7 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
   const backgroundCss = getBackgroundCss(card.background);
   return (
     <div
+      data-card-preview="true"
       className="mx-auto overflow-hidden relative"
       style={{
         width: CARD_SIZE.width,
@@ -651,7 +652,12 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
         background: backgroundCss,
       }}
     >
-      <Canvas shadows frameloop="demand" style={{ background: "transparent" }}>
+      <Canvas
+        shadows
+        frameloop="demand"
+        gl={{ preserveDrawingBuffer: true }}
+        style={{ background: "transparent" }}
+      >
         <PerspectiveCamera
           makeDefault
           position={[12.24, 24.9, 12.95]}
@@ -686,14 +692,25 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
         />
       </Canvas>
       <div
-        className="prose prose-sm text-black max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 p-5 pointer-events-none overflow-hidden backdrop-blur-md bg-white/40"
+        className={`pairing-${card.content.fontPairing} max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 p-5 pointer-events-none overflow-hidden flex flex-col gap-3`}
         style={{
           width: "100%",
           height: "33%",
-          fontFamily: "Georgia, serif",
+          color: BACKGROUND_PRESETS[card.background].foreground,
         }}
-        dangerouslySetInnerHTML={{ __html: card.content?.htmlContent ?? "" }}
-      />
+      >
+        <h1 className="card-title text-3xl leading-tight m-0">
+          {card.content.title}
+        </h1>
+        <p className="card-body text-base leading-relaxed m-0 whitespace-pre-line">
+          {card.content.body}
+        </p>
+        {card.content.signature ? (
+          <p className="card-signature text-sm m-0 mt-1">
+            {card.content.signature}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

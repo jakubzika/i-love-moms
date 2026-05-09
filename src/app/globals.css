@@ -136,87 +136,87 @@ cpk-web-inspector {
   }
 }
 
-/* ── Card style presets ────────────────────────────────────────────────
-   Use one of the .theme-* wrappers, or mix .title-* / .content-* per
-   element. Per-element atoms win over theme wrappers thanks to source
-   order below.
+/* ── Card font pairings ────────────────────────────────────────────────
+   Wrap the card in `.pairing-<id>`. The wrapper sets:
+     - .card-title  — title font
+     - .card-body   — body font
+     - .card-signature — signature (uses body font, slight italic)
 
-   Themes:
-     cottagecore     — warm pastoral, Lobster + EB Garamond
-     calligraphic    — flowing script, Great Vibes + Cormorant Garamond
-     modern-sans     — clean editorial, Bricolage Grotesque + Inter
-     romantic-serif  — classic romance, Playfair Display + Lora
-     handwritten     — hand-noted, Caveat for both
-     storybook       — whimsical, Fraunces + Crimson Pro
+   Pairings:
+     editorial       — Fraunces + Inter
+     clean           — Bricolage Grotesque (single family)
+     serif-classic   — Instrument Serif + Lora
+     handwritten     — Caveat (single family)
+     display         — DM Serif Display + DM Sans
+     modern-grotesk  — Space Grotesk + Manrope
    ──────────────────────────────────────────────────────────────────── */
 
-.theme-cottagecore .card-title,
-.title-cottagecore {
-  font-family: "Lobster", cursive;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-}
-.theme-cottagecore .card-content,
-.content-cottagecore {
-  font-family: "EB Garamond", serif;
-  font-weight: 400;
-}
-
-.theme-calligraphic .card-title,
-.title-calligraphic {
-  font-family: "Great Vibes", cursive;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-}
-.theme-calligraphic .card-content,
-.content-calligraphic {
-  font-family: "Cormorant Garamond", serif;
-  font-weight: 400;
-}
-
-.theme-modern-sans .card-title,
-.title-modern-sans {
-  font-family: "Bricolage Grotesque", sans-serif;
+.pairing-editorial .card-title {
+  font-family: "Fraunces", serif;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
-.theme-modern-sans .card-content,
-.content-modern-sans {
+.pairing-editorial .card-body,
+.pairing-editorial .card-signature {
   font-family: "Inter", sans-serif;
   font-weight: 400;
 }
 
-.theme-romantic-serif .card-title,
-.title-romantic-serif {
-  font-family: "Playfair Display", serif;
+.pairing-clean .card-title {
+  font-family: "Bricolage Grotesque", sans-serif;
   font-weight: 700;
-  font-style: italic;
+  letter-spacing: -0.02em;
 }
-.theme-romantic-serif .card-content,
-.content-romantic-serif {
+.pairing-clean .card-body,
+.pairing-clean .card-signature {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 400;
+}
+
+.pairing-serif-classic .card-title {
+  font-family: "Instrument Serif", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.pairing-serif-classic .card-body,
+.pairing-serif-classic .card-signature {
   font-family: "Lora", serif;
   font-weight: 400;
 }
 
-.theme-handwritten .card-title,
-.title-handwritten {
+.pairing-handwritten .card-title {
   font-family: "Caveat", cursive;
   font-weight: 700;
 }
-.theme-handwritten .card-content,
-.content-handwritten {
+.pairing-handwritten .card-body,
+.pairing-handwritten .card-signature {
   font-family: "Caveat", cursive;
   font-weight: 400;
 }
 
-.theme-storybook .card-title,
-.title-storybook {
-  font-family: "Fraunces", serif;
-  font-weight: 700;
-  font-style: italic;
-}
-.theme-storybook .card-content,
-.content-storybook {
-  font-family: "Crimson Pro", serif;
+.pairing-display .card-title {
+  font-family: "DM Serif Display", serif;
   font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.pairing-display .card-body,
+.pairing-display .card-signature {
+  font-family: "DM Sans", sans-serif;
+  font-weight: 400;
+}
+
+.pairing-modern-grotesk .card-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.pairing-modern-grotesk .card-body,
+.pairing-modern-grotesk .card-signature {
+  font-family: "Manrope", sans-serif;
+  font-weight: 400;
+}
+
+.card-signature {
+  font-style: italic;
+  opacity: 0.85;
 }

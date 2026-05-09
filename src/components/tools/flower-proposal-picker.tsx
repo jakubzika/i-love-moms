@@ -59,54 +59,30 @@ export function FlowerProposalPicker({
   );
 
   useEffect(() => {
-    console.log("[picker] mount, beginPreviewSession", { title, sessionId });
     beginPreviewSession(sessionId);
 
     return () => {
-      console.log("[picker] unmount", { title, sessionId, finished: finishedRef.current });
       if (!finishedRef.current) {
         clearPreviewSession(sessionId);
       }
     };
-  }, [beginPreviewSession, clearPreviewSession, sessionId, title]);
+  }, [beginPreviewSession, clearPreviewSession, sessionId]);
 
   function selectProposal(proposal: FlowerCardProposal) {
-    console.log("[picker] selectProposal", {
-      title,
-      id: proposal.id,
-      isActiveSession,
-      activePreviewSessionId,
-      sessionId,
-    });
-    if (!isActiveSession) {
-      console.log("[picker] selectProposal BLOCKED — session not active");
-      return;
-    }
-
+    if (!isActiveSession) return;
     setSelectedProposalId(proposal.id);
     previewCardForSession(sessionId, proposal.card);
   }
 
   async function acceptProposal() {
-    if (!selectedProposal) {
-      console.log("[picker] accept BAIL: no selectedProposal");
-      return;
-    }
-    console.log("[picker] accept START", {
-      title,
-      id: selectedProposal.id,
-      proposedBg: selectedProposal.card.background,
-    });
+    if (!selectedProposal) return;
     finishedRef.current = true;
     setState(selectedProposal.card);
-    console.log("[picker] accept: awaiting respond");
     await respond?.(`accepted:${selectedProposal.id}`);
-    console.log("[picker] accept: respond resolved");
     clearPreviewSession(sessionId);
   }
 
   async function rejectProposal() {
-    console.log("[picker] reject", { title });
     finishedRef.current = true;
     await respond?.("rejected");
     clearPreviewSession(sessionId);

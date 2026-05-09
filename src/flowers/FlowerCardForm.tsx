@@ -6,10 +6,13 @@ import { FlowerCardPreview } from "./index";
 import {
   ALL_BACKGROUND_PRESETS,
   ALL_FLOWER_TYPES,
+  ALL_FONT_PAIRINGS,
+  FONT_PAIRINGS,
   type BackgroundPreset,
   type BouquetEntry,
   type FlowerCard,
   type FlowerType,
+  type FontPairing,
 } from "./schema";
 
 const initialCounts: Record<FlowerType, number> = {
@@ -27,31 +30,15 @@ const initialCounts: Record<FlowerType, number> = {
   chrysanthemum: 0,
 };
 
-const initialHtml = `
-<h1 style="font-family: 'Georgia', serif; font-size: 28px; margin: 0 0 8px;">
-  Happy Mother's Day
-</h1>
-<p style="font-family: 'Georgia', serif; font-style: italic; opacity: 0.85; margin: 0 0 14px;">
-  to the woman who made everything possible
-</p>
-<p style="font-family: 'Georgia', serif; line-height: 1.55; margin: 0 0 12px;">
-  Thank you for the warmth of your kitchen,<br/>
-  the patience in your eyes,<br/>
-  and the love you've quietly stitched into my life.
-</p>
-<p style="font-family: 'Georgia', serif; line-height: 1.55; margin: 0 0 18px;">
-  These flowers are barely a fraction of what you deserve,<br/>
-  but every one of them was chosen with you in mind.
-</p>
-<p style="font-family: 'Georgia', serif; text-align: right; margin: 0;">
-  — with all my love
-</p>
-`.trim();
-
 export default function FlowerCardForm() {
   const [counts, setCounts] =
     useState<Record<FlowerType, number>>(initialCounts);
-  const [htmlContent, setHtmlContent] = useState(initialHtml);
+  const [title, setTitle] = useState("Happy Mother's Day");
+  const [body, setBody] = useState(
+    "Thank you for the warmth of your kitchen, the patience in your eyes, and the love you've quietly stitched into my life.",
+  );
+  const [signature, setSignature] = useState("— with all my love");
+  const [fontPairing, setFontPairing] = useState<FontPairing>("editorial");
   const [background, setBackground] = useState<BackgroundPreset>("ivory");
 
   const flowers: BouquetEntry[] = ALL_FLOWER_TYPES.flatMap((type) => {
@@ -60,7 +47,7 @@ export default function FlowerCardForm() {
   });
 
   const card: FlowerCard = {
-    content: { htmlContent },
+    content: { title, body, signature, fontPairing },
     bouquet: { flowers },
     background,
   };
@@ -76,13 +63,59 @@ export default function FlowerCardForm() {
       </div>
       <aside className="border-l p-6 overflow-auto bg-muted/30 space-y-6">
         <div className="space-y-2">
-          <label className="text-sm font-mono opacity-70 block">message</label>
-          <textarea
-            value={htmlContent}
-            onChange={(e) => setHtmlContent(e.target.value)}
-            rows={3}
+          <label className="text-sm font-mono opacity-70 block">title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             className="w-full font-mono text-xs p-2 border rounded bg-white"
           />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-mono opacity-70 block">body</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            className="w-full font-mono text-xs p-2 border rounded bg-white"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-mono opacity-70 block">signature</label>
+          <input
+            type="text"
+            value={signature}
+            onChange={(e) => setSignature(e.target.value)}
+            className="w-full font-mono text-xs p-2 border rounded bg-white"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-sm font-mono opacity-70">font pairing</h2>
+          <div className="grid grid-cols-1 gap-1.5">
+            {ALL_FONT_PAIRINGS.map((id) => {
+              const spec = FONT_PAIRINGS[id];
+              const isActive = fontPairing === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFontPairing(id)}
+                  className={[
+                    "rounded border p-2 text-left font-mono text-xs",
+                    isActive
+                      ? "border-neutral-950 ring-2 ring-neutral-950"
+                      : "border-neutral-300 hover:bg-muted",
+                  ].join(" ")}
+                >
+                  <div className="font-medium">{spec.label}</div>
+                  <div className="opacity-60">{spec.description}</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-2">
