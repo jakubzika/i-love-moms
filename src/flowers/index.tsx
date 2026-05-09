@@ -1,220 +1,595 @@
 "use client";
 
+import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { PerspectiveCamera } from "@react-three/drei";
-import type { FlowerCard, Flower } from "./schema";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { Color, Quaternion, Vector3 } from "three";
+import { defaultFlower, type FlowerCard, type Flower } from "./schema";
 import { CARD_SIZE } from "./constants";
+import {
+  DoubleSide,
+  buildStemLeaves,
+  hashSeed,
+  makeBendableStemCurve,
+  mulberry32,
+  packBouquet,
+  petalGeometry,
+  phyllotaxisDisc,
+  ringPositions,
+  sizeScale,
+  type PetalShape,
+} from "./generative";
+import {
+  createRisoPetalMaterial,
+  createRisoStemMaterial,
+  getFlowerPalette,
+} from "./risoMaterial";
+import type { FlowerType } from "./schema";
 
-function sizeScale(size: Flower["size"]): number {
-  return size === "large" ? 1.4 : size === "small" ? 0.7 : 1;
+type PetalLayer = {
+  count: number;
+  radius: number;
+  tilt: number;
+  petal: PetalShape;
+  yOffset?: number;
+  twist?: number;
+  colorMix?: number;
+  rollPhase?: number;
+};
+
+type FlowerRecipe = {
+  layers: PetalLayer[];
+  centerColor?: string;
+  centerRadius?: number;
+  centerCount?: number;
+  centerHeight?: number;
+};
+
+function shade(hex: string, amount: number): string {
+  const c = new Color(hex);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  hsl.l = Math.min(1, Math.max(0, hsl.l + amount));
+  c.setHSL(hsl.h, hsl.s, hsl.l);
+  return `#${c.getHexString()}`;
 }
 
-function FlowerHead({ flower }: { flower: Flower }) {
-  const scale = sizeScale(flower.size);
-  switch (flower.type) {
-    case "rose":
-      return (
-        <group>
-          <mesh>
-            <sphereGeometry args={[0.45 * scale, 16, 16]} />
-            <meshStandardMaterial color={flower.color} roughness={0.6} />
-          </mesh>
-          <mesh position={[0, 0.05, 0]}>
-            <torusGeometry args={[0.32 * scale, 0.1 * scale, 8, 24]} />
-            <meshStandardMaterial color={flower.color} />
-          </mesh>
-        </group>
+function PetalLayerMesh({
+  layer,
+  scale,
+  baseColor,
+  flowerType,
+  seedOffset,
+  layerSeed,
+}: {
+  layer: PetalLayer;
+  scale: number;
+  baseColor: string;
+  flowerType: FlowerType;
+  seedOffset: number;
+  layerSeed: number;
+}) {
+  const positions = useMemo(
+    () => ringPositions(layer.count, layer.radius, seedOffset),
+    [layer.count, layer.radius, seedOffset],
+  );
+
+  const instances = useMemo(() => {
+    const rand = mulberry32(layerSeed);
+    return positions.map((pos, i) => {
+      const sizeJitter = 0.85 + rand() * 0.3;
+      const twistJitter = (rand() - 0.5) * 0.3;
+      const ruffleJitter = rand() * 0.12;
+      const noiseAmp = 0.2 + rand() * 0.4;
+      const colorJitter = (rand() - 0.5) * 0.08;
+      const tiltJitter = (rand() - 0.5) * 0.18;
+      const petal = {
+        ...layer.petal,
+        length: layer.petal.length * sizeJitter,
+        maxWidth: layer.petal.maxWidth * (0.9 + rand() * 0.25),
+        twist: (layer.petal.twist ?? 0) + twistJitter,
+        ruffle: (layer.petal.ruffle ?? 0) + ruffleJitter,
+        noiseAmp: (layer.petal.noiseAmp ?? 0) + noiseAmp,
+        noiseSeed: layerSeed * 31 + i,
+      };
+      const geom = petalGeometry(petal);
+      const color = shade(
+        baseColor,
+        (layer.colorMix ?? 0) * 0.18 + colorJitter,
       );
-    case "tulip":
-      return (
-        <mesh>
-          <coneGeometry args={[0.35 * scale, 0.7 * scale, 12]} />
-          <meshStandardMaterial color={flower.color} />
+      return { geom, color, pos, i, tiltJitter };
+    });
+  }, [positions, layer, baseColor, layerSeed]);
+
+  const palette = useMemo(() => getFlowerPalette(flowerType), [flowerType]);
+
+  return (
+    <group position={[0, layer.yOffset ?? 0, 0]} scale={scale}>
+      {instances.map(({ geom, color, pos, i, tiltJitter }) => {
+        const twist = (layer.twist ?? 0) * (i / layer.count);
+        return (
+          <RisoPetalMesh
+            key={i}
+            geometry={geom}
+            position={[pos.x, 0, pos.z]}
+            rotation={[layer.tilt + tiltJitter, -pos.angle + twist, 0]}
+            color={color}
+            palette={palette}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
+function RisoPetalMesh({
+  geometry,
+  position,
+  rotation,
+  color,
+  palette,
+}: {
+  geometry: import("three").BufferGeometry;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  color: string;
+  palette: ReturnType<typeof getFlowerPalette>;
+}) {
+  const material = useMemo(
+    () => createRisoPetalMaterial({ baseColor: color, palette }),
+    [color, palette],
+  );
+  return (
+    <mesh
+      geometry={geometry}
+      position={position}
+      rotation={rotation}
+      material={material}
+    />
+  );
+}
+
+function FlowerCenter({
+  color,
+  radius,
+  count,
+  height,
+  scale,
+}: {
+  color: string;
+  radius: number;
+  count: number;
+  height: number;
+  scale: number;
+}) {
+  const seeds = useMemo(
+    () => phyllotaxisDisc(count, radius / Math.sqrt(count + 1)),
+    [count, radius],
+  );
+  return (
+    <group scale={scale}>
+      <mesh>
+        <cylinderGeometry args={[radius, radius * 0.95, height, 32]} />
+        <meshStandardMaterial color={color} roughness={0.7} />
+      </mesh>
+      {seeds.map(({ x, z }, i) => (
+        <mesh key={i} position={[x, height / 2 + 0.005, z]}>
+          <sphereGeometry args={[Math.max(0.012, radius * 0.06), 6, 6]} />
+          <meshStandardMaterial color={shade(color, -0.15)} roughness={0.8} />
         </mesh>
-      );
+      ))}
+    </group>
+  );
+}
+
+function buildRecipe(flower: Flower, rand: () => number): FlowerRecipe {
+  switch (flower.type) {
+    case "rose": {
+      const petalsPerLayer = 8;
+      const layers: PetalLayer[] = [];
+      for (let i = 0; i < 5; i++) {
+        const t = i / 5;
+        layers.push({
+          count: petalsPerLayer + i * 2,
+          radius: 0.05 + t * 0.35,
+          tilt: -1.1 + t * 0.9,
+          twist: 0.4 + rand() * 0.3,
+          colorMix: -0.15 + t * 0.25,
+          yOffset: 0.04 - t * 0.04,
+          petal: {
+            length: 0.42 + t * 0.12,
+            maxWidth: 0.22 + t * 0.04,
+            baseWidth: 0.04,
+            tipSharpness: 0.55 - t * 0.2,
+            curl: 0.1 - t * 0.35,
+            ruffle: 0,
+            noiseAmp: 0.15,
+          },
+        });
+      }
+      return { layers };
+    }
+    case "tulip": {
+      return {
+        layers: [
+          {
+            count: 3,
+            radius: 0.05,
+            tilt: -0.4,
+            petal: {
+              length: 0.6,
+              maxWidth: 0.28,
+              baseWidth: 0.05,
+              tipSharpness: 0.25,
+              curl: 0.5,
+            },
+          },
+          {
+            count: 3,
+            radius: 0.07,
+            tilt: -0.3,
+            rollPhase: Math.PI / 3,
+            petal: {
+              length: 0.55,
+              maxWidth: 0.26,
+              baseWidth: 0.04,
+              tipSharpness: 0.3,
+              curl: 0.45,
+            },
+          },
+        ],
+      };
+    }
     case "sunflower": {
-      const r = 0.55 * scale;
-      const petals = 14;
-      return (
-        <group>
-          <mesh>
-            <cylinderGeometry args={[r * 0.5, r * 0.5, 0.12, 24]} />
-            <meshStandardMaterial color="#5a3a1a" />
-          </mesh>
-          {Array.from({ length: petals }, (_, i) => {
-            const a = (i / petals) * Math.PI * 2;
-            return (
-              <mesh
-                key={i}
-                position={[Math.cos(a) * r * 0.8, 0, Math.sin(a) * r * 0.8]}
-                rotation={[0, -a, 0]}
-              >
-                <coneGeometry args={[0.12 * scale, 0.45 * scale, 6]} />
-                <meshStandardMaterial color={flower.color} />
-              </mesh>
-            );
-          })}
-        </group>
-      );
+      return {
+        layers: [
+          {
+            count: 24,
+            radius: 0.42,
+            tilt: -0.15,
+            petal: {
+              length: 0.55,
+              maxWidth: 0.13,
+              baseWidth: 0.04,
+              tipSharpness: 0.55,
+              curl: 0.05,
+            },
+            colorMix: 0.05,
+          },
+          {
+            count: 24,
+            radius: 0.4,
+            tilt: -0.05,
+            rollPhase: Math.PI / 24,
+            petal: {
+              length: 0.42,
+              maxWidth: 0.12,
+              baseWidth: 0.03,
+              tipSharpness: 0.6,
+              curl: 0.02,
+            },
+            colorMix: -0.05,
+            yOffset: 0.03,
+          },
+        ],
+        centerColor: "#5a3a1a",
+        centerRadius: 0.34,
+        centerCount: 90,
+        centerHeight: 0.07,
+      };
     }
     case "daisy": {
-      const petals = 10;
-      const r = 0.35 * scale;
-      return (
-        <group>
-          <mesh>
-            <sphereGeometry args={[r * 0.45, 12, 12]} />
-            <meshStandardMaterial color="#f1c40f" />
-          </mesh>
-          {Array.from({ length: petals }, (_, i) => {
-            const a = (i / petals) * Math.PI * 2;
-            return (
-              <mesh
-                key={i}
-                position={[Math.cos(a) * r * 0.9, 0, Math.sin(a) * r * 0.9]}
-                rotation={[0, -a, 0]}
-              >
-                <boxGeometry args={[0.08 * scale, 0.04 * scale, 0.3 * scale]} />
-                <meshStandardMaterial color={flower.color} />
-              </mesh>
-            );
-          })}
-        </group>
-      );
+      return {
+        layers: [
+          {
+            count: 14,
+            radius: 0.18,
+            tilt: -0.05,
+            petal: {
+              length: 0.45,
+              maxWidth: 0.1,
+              baseWidth: 0.03,
+              tipSharpness: 0.45,
+              curl: 0.1,
+            },
+          },
+        ],
+        centerColor: "#f1c40f",
+        centerRadius: 0.16,
+        centerCount: 36,
+        centerHeight: 0.04,
+      };
     }
-    case "lavender":
-      return (
-        <group>
-          {[0, 0.15, 0.3, 0.45].map((y, i) => (
-            <mesh key={i} position={[0, y * scale, 0]}>
-              <sphereGeometry args={[(0.12 - i * 0.02) * scale, 8, 8]} />
-              <meshStandardMaterial color={flower.color} />
-            </mesh>
-          ))}
-        </group>
-      );
-    case "peony":
-      return (
-        <mesh>
-          <icosahedronGeometry args={[0.5 * scale, 1]} />
-          <meshStandardMaterial color={flower.color} roughness={0.4} />
-        </mesh>
-      );
-    case "babys-breath":
-      return (
-        <group>
-          {Array.from({ length: 6 }, (_, i) => {
-            const a = (i / 6) * Math.PI * 2;
-            return (
-              <mesh
-                key={i}
-                position={[
-                  Math.cos(a) * 0.18 * scale,
-                  0,
-                  Math.sin(a) * 0.18 * scale,
-                ]}
-              >
-                <sphereGeometry args={[0.07 * scale, 8, 8]} />
-                <meshStandardMaterial color={flower.color} />
-              </mesh>
-            );
-          })}
-        </group>
-      );
-    case "hydrangea":
-      return (
-        <group>
-          {Array.from({ length: 9 }, (_, i) => {
-            const a = (i / 9) * Math.PI * 2;
-            return (
-              <mesh
-                key={i}
-                position={[
-                  Math.cos(a) * 0.25 * scale,
-                  Math.sin(i * 0.7) * 0.05,
-                  Math.sin(a) * 0.25 * scale,
-                ]}
-              >
-                <sphereGeometry args={[0.16 * scale, 10, 10]} />
-                <meshStandardMaterial color={flower.color} />
-              </mesh>
-            );
-          })}
-        </group>
-      );
-    case "carnation":
-      return (
-        <mesh>
-          <dodecahedronGeometry args={[0.4 * scale, 0]} />
-          <meshStandardMaterial color={flower.color} roughness={0.5} />
-        </mesh>
-      );
-    case "lily":
-      return (
-        <group>
-          {Array.from({ length: 6 }, (_, i) => {
-            const a = (i / 6) * Math.PI * 2;
-            return (
-              <mesh
-                key={i}
-                position={[
-                  Math.cos(a) * 0.25 * scale,
-                  0,
-                  Math.sin(a) * 0.25 * scale,
-                ]}
-                rotation={[Math.PI / 4, -a, 0]}
-              >
-                <coneGeometry args={[0.14 * scale, 0.5 * scale, 6]} />
-                <meshStandardMaterial color={flower.color} />
-              </mesh>
-            );
-          })}
-        </group>
-      );
-    case "iris":
-      return (
-        <group>
-          {[0, Math.PI / 1.5, -Math.PI / 1.5].map((a, i) => (
-            <mesh key={i} rotation={[0, a, Math.PI / 6]}>
-              <coneGeometry args={[0.18 * scale, 0.6 * scale, 6]} />
-              <meshStandardMaterial color={flower.color} />
-            </mesh>
-          ))}
-        </group>
-      );
+    case "lavender": {
+      const layerCount = 6;
+      const step = 0.13;
+      return {
+        layers: Array.from({ length: layerCount }, (_, i) => ({
+          count: 6,
+          radius: 0.06,
+          tilt: -0.5,
+          yOffset: -0.1 + i * step,
+          rollPhase: i * 0.4,
+          petal: {
+            length: 0.14,
+            maxWidth: 0.08,
+            baseWidth: 0.02,
+            tipSharpness: 0.6,
+            curl: 0.1,
+          },
+          colorMix: -0.05 + i * 0.04,
+        })),
+      };
+    }
+    case "peony": {
+      const layers: PetalLayer[] = [];
+      for (let i = 0; i < 6; i++) {
+        const t = i / 6;
+        layers.push({
+          count: 10 + i * 3,
+          radius: 0.05 + t * 0.42,
+          tilt: -1.2 + t * 1.1,
+          twist: 0.3 + rand() * 0.4,
+          colorMix: -0.1 + t * 0.2,
+          yOffset: 0.05 - t * 0.05,
+          petal: {
+            length: 0.32 + t * 0.18,
+            maxWidth: 0.2 + t * 0.06,
+            baseWidth: 0.04,
+            tipSharpness: 0.4 - t * 0.25,
+            curl: 0.7 - t * 0.5,
+          },
+        });
+      }
+      return { layers };
+    }
+    case "babys-breath": {
+      return {
+        layers: [
+          {
+            count: 7,
+            radius: 0.14,
+            tilt: -0.6,
+            petal: {
+              length: 0.12,
+              maxWidth: 0.07,
+              baseWidth: 0.02,
+              tipSharpness: 0.4,
+              curl: 0.2,
+            },
+          },
+        ],
+        centerColor: "#fff8e0",
+        centerRadius: 0.05,
+        centerCount: 8,
+        centerHeight: 0.02,
+      };
+    }
+    case "hydrangea": {
+      const layers: PetalLayer[] = [];
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        layers.push({
+          count: 4,
+          radius: 0.05,
+          tilt: -0.5,
+          rollPhase: a,
+          yOffset: Math.sin(i * 0.7) * 0.04,
+          colorMix: -0.05 + (i % 3) * 0.05,
+          petal: {
+            length: 0.18,
+            maxWidth: 0.14,
+            baseWidth: 0.03,
+            tipSharpness: 0.25,
+            curl: 0.15,
+          },
+        });
+      }
+      return { layers };
+    }
+    case "carnation": {
+      const layers: PetalLayer[] = [];
+      for (let i = 0; i < 6; i++) {
+        const t = i / 6;
+        layers.push({
+          count: 12 + i * 2,
+          radius: 0.04 + t * 0.32,
+          tilt: -1.0 + t * 0.9,
+          twist: 0.6,
+          rollPhase: i * 0.25,
+          colorMix: -0.08 + t * 0.15,
+          yOffset: 0.04 - t * 0.04,
+          petal: {
+            length: 0.3 + t * 0.12,
+            maxWidth: 0.16,
+            baseWidth: 0.025,
+            tipSharpness: 0.7,
+            curl: 0.35 - t * 0.2,
+          },
+        });
+      }
+      return { layers };
+    }
+    case "lily": {
+      return {
+        layers: [
+          {
+            count: 6,
+            radius: 0.12,
+            tilt: -0.6,
+            petal: {
+              length: 0.7,
+              maxWidth: 0.17,
+              baseWidth: 0.03,
+              tipSharpness: 0.55,
+              curl: 0.45,
+            },
+          },
+        ],
+        centerColor: "#b58a3d",
+        centerRadius: 0.05,
+        centerCount: 6,
+        centerHeight: 0.04,
+      };
+    }
+    case "iris": {
+      return {
+        layers: [
+          {
+            count: 3,
+            radius: 0.05,
+            tilt: -1.0,
+            petal: {
+              length: 0.6,
+              maxWidth: 0.22,
+              baseWidth: 0.04,
+              tipSharpness: 0.35,
+              curl: 0.6,
+            },
+          },
+          {
+            count: 3,
+            radius: 0.05,
+            tilt: -0.2,
+            rollPhase: Math.PI / 3,
+            colorMix: 0.1,
+            petal: {
+              length: 0.55,
+              maxWidth: 0.2,
+              baseWidth: 0.04,
+              tipSharpness: 0.4,
+              curl: 0.3,
+            },
+          },
+        ],
+      };
+    }
     case "chrysanthemum": {
-      const petals = 18;
-      const r = 0.4 * scale;
-      return (
-        <group>
-          {Array.from({ length: petals }, (_, i) => {
-            const a = (i / petals) * Math.PI * 2;
-            return (
-              <mesh
-                key={i}
-                position={[Math.cos(a) * r, 0, Math.sin(a) * r]}
-                rotation={[0, -a, 0]}
-              >
-                <coneGeometry args={[0.07 * scale, 0.3 * scale, 6]} />
-                <meshStandardMaterial color={flower.color} />
-              </mesh>
-            );
-          })}
-        </group>
-      );
+      const layers: PetalLayer[] = [];
+      for (let i = 0; i < 5; i++) {
+        const t = i / 5;
+        layers.push({
+          count: 18 + i * 4,
+          radius: 0.06 + t * 0.34,
+          tilt: -0.9 + t * 0.7,
+          rollPhase: i * 0.18,
+          colorMix: -0.08 + t * 0.12,
+          yOffset: 0.04 - t * 0.04,
+          petal: {
+            length: 0.25 + t * 0.18,
+            maxWidth: 0.07,
+            baseWidth: 0.018,
+            tipSharpness: 0.75,
+            curl: 0.5 - t * 0.3,
+          },
+        });
+      }
+      return { layers };
     }
   }
 }
 
-function Stem({ flower, x, z }: { flower: Flower; x: number; z: number }) {
-  const stemH = (flower.stemLength ?? 1.2) * 1.2;
+export function FlowerHead({ flower }: { flower: Flower }) {
+  const scale = sizeScale(flower.size);
+  const recipe = useMemo(() => {
+    const seed = hashSeed(`${flower.type}:${flower.color}`);
+    const rand = mulberry32(seed);
+    return buildRecipe(flower, rand);
+  }, [flower]);
+
+  const baseSeed = useMemo(
+    () => hashSeed(`${flower.type}:${flower.color}`),
+    [flower.type, flower.color],
+  );
+
   return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, stemH / 2, 0]}>
-        <cylinderGeometry args={[0.04, 0.04, stemH, 8]} />
-        <meshStandardMaterial color="#3d7a3a" />
+    <group>
+      {recipe.layers.map((layer, i) => (
+        <PetalLayerMesh
+          key={i}
+          layer={layer}
+          scale={scale}
+          baseColor={flower.color}
+          flowerType={flower.type}
+          seedOffset={layer.rollPhase ?? 0}
+          layerSeed={baseSeed * 1000 + i}
+        />
+      ))}
+      {recipe.centerColor && (
+        <FlowerCenter
+          color={recipe.centerColor}
+          radius={(recipe.centerRadius ?? 0.1) * scale}
+          count={recipe.centerCount ?? 30}
+          height={recipe.centerHeight ?? 0.04}
+          scale={1}
+        />
+      )}
+    </group>
+  );
+}
+
+function BendableStem({
+  base,
+  head,
+  normal,
+  flower,
+  seed,
+}: {
+  base: Vector3;
+  head: Vector3;
+  normal: Vector3;
+  flower: Flower;
+  seed: number;
+}) {
+  const { curve, stemRadius, quaternion, stemColor, roughness, taper } =
+    useMemo(() => {
+      const c = makeBendableStemCurve(base, head, seed);
+      const rand = mulberry32(seed);
+      const radius = 0.009 + rand() * 0.006;
+      const up = new Vector3(0, 1, 0);
+      const q = new Quaternion().setFromUnitVectors(
+        up,
+        normal.clone().normalize(),
+      );
+      const greens = [
+        "#4a7a3a",
+        "#5e8c45",
+        "#3d6b35",
+        "#6b9856",
+        "#557a40",
+        "#42713a",
+      ];
+      const stem = greens[Math.floor(rand() * greens.length)];
+      return {
+        curve: c,
+        stemRadius: radius,
+        quaternion: q,
+        stemColor: stem,
+      };
+    }, [base, head, normal, seed]);
+
+  const material = useMemo(
+    () => createRisoStemMaterial(stemColor),
+    [stemColor],
+  );
+
+  const leaves = useMemo(() => buildStemLeaves(curve, seed), [curve, seed]);
+
+  return (
+    <group>
+      <mesh material={material}>
+        <tubeGeometry args={[curve, 36, stemRadius, 10, false]} />
       </mesh>
-      <group position={[0, stemH, 0]}>
+      {leaves.map((l) => (
+        <mesh
+          key={l.key}
+          geometry={l.geometry}
+          position={l.position}
+          quaternion={l.quaternion}
+          material={material}
+        />
+      ))}
+      <group position={[head.x, head.y, head.z]} quaternion={quaternion}>
         <FlowerHead flower={flower} />
       </group>
     </group>
@@ -222,34 +597,42 @@ function Stem({ flower, x, z }: { flower: Flower; x: number; z: number }) {
 }
 
 function Bouquet({ card }: { card: FlowerCard }) {
-  const expanded = card.bouquet.flowers.flatMap((f, fi) =>
-    Array.from({ length: Math.max(1, f.quantity ?? 1) }, (_, qi) => ({
-      flower: f,
-      key: `${fi}-${qi}`,
-    })),
+  const expanded = useMemo(
+    () =>
+      card.bouquet.flowers.flatMap((entry, ei) =>
+        Array.from({ length: Math.max(1, entry.count) }, (_, qi) => {
+          const flower = defaultFlower(entry.type);
+          return {
+            flower,
+            key: `${ei}-${qi}`,
+            seed: hashSeed(`${flower.type}:${flower.color}:${ei}:${qi}`),
+          };
+        }),
+      ),
+    [card],
   );
-  const total = Math.max(1, expanded.length);
-  const radius = Math.min(2.2, 0.4 + total * 0.08);
+
+  const { placements, domeR } = useMemo(() => {
+    const seed = hashSeed(`bouquet:${expanded.length}`);
+    return packBouquet(
+      expanded.map((e) => e.flower),
+      Math.floor(seed * 1e9),
+      { baseY: 1.6 },
+    );
+  }, [expanded]);
 
   return (
     <group>
-      {expanded.map(({ flower, key }, i) => {
-        const a = (i / total) * Math.PI * 2;
-        const r =
-          i === 0 && total > 1 ? 0 : radius * (0.6 + 0.4 * ((i % 3) / 3));
-        return (
-          <Stem
-            key={key}
-            flower={flower}
-            x={Math.cos(a) * r}
-            z={Math.sin(a) * r}
-          />
-        );
-      })}
-      <mesh position={[0, -0.05, 0]}>
-        <cylinderGeometry args={[radius + 0.4, radius + 0.5, 0.4, 24]} />
-        <meshStandardMaterial color="#caa472" />
-      </mesh>
+      {placements.map((p, i) => (
+        <BendableStem
+          key={expanded[i].key}
+          base={p.base}
+          head={p.head}
+          normal={p.normal}
+          flower={p.flower}
+          seed={Math.floor(expanded[i].seed * 1e9)}
+        />
+      ))}
     </group>
   );
 }
@@ -257,13 +640,14 @@ function Bouquet({ card }: { card: FlowerCard }) {
 export function FlowerCardPreview({ card }: { card: FlowerCard }) {
   return (
     <div
-      className="bg-pink-50 rounded-lg shadow-md mx-auto overflow-hidden border relative"
+      className="mx-auto overflow-hidden border relative"
       style={{ width: CARD_SIZE.width, height: CARD_SIZE.height }}
     >
       <Canvas shadows>
         <PerspectiveCamera
           makeDefault
-          position={[0, 1.4, 5.5]}
+          position={[0, 8.5, 2.8]}
+          rotation={[-1.3, 0, 0]}
           fov={35}
           near={0.1}
           far={50}
@@ -276,14 +660,15 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
           position={[0, -0.26, 0]}
           receiveShadow
         >
-          <planeGeometry args={[20, 20]} />
-          <meshStandardMaterial color="#f5d6e1" />
+          {/* <planeGeometry args={[20, 20]} /> */}
+          <meshStandardMaterial color="#ffffff" />
         </mesh>
+        <OrbitControls makeDefault target={[0, 1.8, 0]} />
       </Canvas>
       <div
-        className="prose prose-sm max-w-none absolute left-1/2 bottom-6 -translate-x-1/2 bg-white/90 backdrop-blur p-5 rounded-lg shadow-lg border pointer-events-none"
+        className="prose prose-sm text-white max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 backdrop-blur p-5 pointer-events-none"
         style={{
-          width: "min(80%, 420px)",
+          width: "100%",
           fontFamily: "Georgia, serif",
         }}
         dangerouslySetInnerHTML={{ __html: card.content.htmlContent ?? "" }}

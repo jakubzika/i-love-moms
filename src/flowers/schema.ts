@@ -8,96 +8,39 @@ export type Content = z.infer<typeof ContentSchema>;
 export const FlowerSizeSchema = z.enum(["small", "medium", "large"]);
 export type FlowerSize = z.infer<typeof FlowerSizeSchema>;
 
-export const BaseFlowerSchema = z.object({
+export const FlowerTypeSchema = z.enum([
+  "rose",
+  "tulip",
+  "sunflower",
+  "daisy",
+  "lavender",
+  "peony",
+  "babys-breath",
+  "hydrangea",
+  "carnation",
+  "lily",
+  "iris",
+  "chrysanthemum",
+]);
+export type FlowerType = z.infer<typeof FlowerTypeSchema>;
+
+export const FlowerSchema = z.object({
+  type: FlowerTypeSchema,
   color: z.string(),
   size: FlowerSizeSchema.default("medium"),
   stemLength: z.number().positive().optional(),
   quantity: z.number().int().positive().default(1),
 });
-export type BaseFlower = z.infer<typeof BaseFlowerSchema>;
-
-export const RoseSchema = BaseFlowerSchema.extend({
-  type: z.literal("rose"),
-  thorns: z.boolean().default(true),
-});
-export type Rose = z.infer<typeof RoseSchema>;
-
-export const TulipSchema = BaseFlowerSchema.extend({
-  type: z.literal("tulip"),
-});
-export type Tulip = z.infer<typeof TulipSchema>;
-
-export const SunflowerSchema = BaseFlowerSchema.extend({
-  type: z.literal("sunflower"),
-  faceDiameterCm: z.number().positive().optional(),
-});
-export type Sunflower = z.infer<typeof SunflowerSchema>;
-
-export const DaisySchema = BaseFlowerSchema.extend({
-  type: z.literal("daisy"),
-});
-export type Daisy = z.infer<typeof DaisySchema>;
-
-export const LavenderSchema = BaseFlowerSchema.extend({
-  type: z.literal("lavender"),
-  fragrant: z.boolean().default(true),
-});
-export type Lavender = z.infer<typeof LavenderSchema>;
-
-export const PeonySchema = BaseFlowerSchema.extend({
-  type: z.literal("peony"),
-});
-export type Peony = z.infer<typeof PeonySchema>;
-
-export const BabysBreathSchema = BaseFlowerSchema.extend({
-  type: z.literal("babys-breath"),
-});
-export type BabysBreath = z.infer<typeof BabysBreathSchema>;
-
-export const HydrangeaSchema = BaseFlowerSchema.extend({
-  type: z.literal("hydrangea"),
-});
-export type Hydrangea = z.infer<typeof HydrangeaSchema>;
-
-export const CarnationSchema = BaseFlowerSchema.extend({
-  type: z.literal("carnation"),
-});
-export type Carnation = z.infer<typeof CarnationSchema>;
-
-export const LilySchema = BaseFlowerSchema.extend({
-  type: z.literal("lily"),
-});
-export type Lily = z.infer<typeof LilySchema>;
-
-export const IrisSchema = BaseFlowerSchema.extend({
-  type: z.literal("iris"),
-});
-export type Iris = z.infer<typeof IrisSchema>;
-
-export const ChrysanthemumSchema = BaseFlowerSchema.extend({
-  type: z.literal("chrysanthemum"),
-});
-export type Chrysanthemum = z.infer<typeof ChrysanthemumSchema>;
-
-export const FlowerSchema = z.discriminatedUnion("type", [
-  RoseSchema,
-  TulipSchema,
-  SunflowerSchema,
-  DaisySchema,
-  LavenderSchema,
-  PeonySchema,
-  BabysBreathSchema,
-  HydrangeaSchema,
-  CarnationSchema,
-  LilySchema,
-  IrisSchema,
-  ChrysanthemumSchema,
-]);
 export type Flower = z.infer<typeof FlowerSchema>;
-export type FlowerType = Flower["type"];
+
+export const BouquetEntrySchema = z.object({
+  type: FlowerTypeSchema,
+  count: z.number().int().positive(),
+});
+export type BouquetEntry = z.infer<typeof BouquetEntrySchema>;
 
 export const BouquetSchema = z.object({
-  flowers: z.array(FlowerSchema),
+  flowers: z.array(BouquetEntrySchema),
 });
 export type Bouquet = z.infer<typeof BouquetSchema>;
 
@@ -107,22 +50,24 @@ export const FlowerCardSchema = z.object({
 });
 export type FlowerCard = z.infer<typeof FlowerCardSchema>;
 
-export const FLOWER_PRESETS = {
-  redRose: { type: "rose", color: "#c0392b", size: "large", quantity: 1, thorns: true },
-  pinkRose: { type: "rose", color: "#ff69b4", size: "medium", quantity: 1, thorns: true },
-  whiteRose: { type: "rose", color: "#fafafa", size: "medium", quantity: 1, thorns: false },
-  yellowTulip: { type: "tulip", color: "#ffd166", size: "medium", quantity: 1 },
-  pinkTulip: { type: "tulip", color: "#ff85a1", size: "medium", quantity: 1 },
-  sunflower: { type: "sunflower", color: "#f4a300", size: "large", quantity: 1, faceDiameterCm: 18 },
-  daisy: { type: "daisy", color: "#ffffff", size: "small", quantity: 1 },
-  lavender: { type: "lavender", color: "#9b7cb6", size: "small", quantity: 3, fragrant: true },
-  peony: { type: "peony", color: "#ffb6c1", size: "large", quantity: 1 },
-  babysBreath: { type: "babys-breath", color: "#fffafa", size: "small", quantity: 6 },
-  hydrangea: { type: "hydrangea", color: "#7fb3d5", size: "large", quantity: 1 },
-  carnationRed: { type: "carnation", color: "#e74c3c", size: "medium", quantity: 1 },
-  lily: { type: "lily", color: "#fff5e1", size: "large", quantity: 1 },
-  iris: { type: "iris", color: "#5b3a8c", size: "medium", quantity: 1 },
-  chrysanthemum: { type: "chrysanthemum", color: "#f1c40f", size: "medium", quantity: 1 },
-} satisfies Record<string, Flower>;
+const TYPE_DEFAULTS: Record<FlowerType, { color: string; size: FlowerSize }> = {
+  rose:           { color: "#ff5e7a", size: "large" },
+  tulip:          { color: "#ffd95a", size: "medium" },
+  sunflower:      { color: "#ffc23a", size: "large" },
+  daisy:          { color: "#fbfbfb", size: "small" },
+  lavender:       { color: "#9fb6ff", size: "small" },
+  peony:          { color: "#ff9bb0", size: "large" },
+  "babys-breath": { color: "#eaf6ff", size: "small" },
+  hydrangea:      { color: "#7fd6e2", size: "large" },
+  carnation:      { color: "#3d7eff", size: "medium" },
+  lily:           { color: "#fffbe8", size: "large" },
+  iris:           { color: "#3a4fb0", size: "medium" },
+  chrysanthemum:  { color: "#ffd23a", size: "medium" },
+};
 
-export type FlowerPresetKey = keyof typeof FLOWER_PRESETS;
+export function defaultFlower(type: FlowerType): Flower {
+  const d = TYPE_DEFAULTS[type];
+  return { type, color: d.color, size: d.size, quantity: 1 };
+}
+
+export const ALL_FLOWER_TYPES: FlowerType[] = FlowerTypeSchema.options;
