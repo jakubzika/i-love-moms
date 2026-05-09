@@ -59,17 +59,27 @@ export function FlowerProposalPicker({
   );
 
   useEffect(() => {
+    console.log("[picker] mount, beginPreviewSession", { title, sessionId });
     beginPreviewSession(sessionId);
 
     return () => {
+      console.log("[picker] unmount", { title, sessionId, finished: finishedRef.current });
       if (!finishedRef.current) {
         clearPreviewSession(sessionId);
       }
     };
-  }, [beginPreviewSession, clearPreviewSession, sessionId]);
+  }, [beginPreviewSession, clearPreviewSession, sessionId, title]);
 
   function selectProposal(proposal: FlowerCardProposal) {
+    console.log("[picker] selectProposal", {
+      title,
+      id: proposal.id,
+      isActiveSession,
+      activePreviewSessionId,
+      sessionId,
+    });
     if (!isActiveSession) {
+      console.log("[picker] selectProposal BLOCKED — session not active");
       return;
     }
 
@@ -79,26 +89,24 @@ export function FlowerProposalPicker({
 
   async function acceptProposal() {
     if (!selectedProposal) {
-      console.log("[picker] acceptProposal: no selectedProposal, bailing");
+      console.log("[picker] accept BAIL: no selectedProposal");
       return;
     }
-
-    console.log("[picker] acceptProposal START", {
+    console.log("[picker] accept START", {
       title,
       id: selectedProposal.id,
-      bg: selectedProposal.card.background,
+      proposedBg: selectedProposal.card.background,
     });
     finishedRef.current = true;
     setState(selectedProposal.card);
-    console.log("[picker] acceptProposal: setState done, awaiting respond");
+    console.log("[picker] accept: awaiting respond");
     await respond?.(`accepted:${selectedProposal.id}`);
-    console.log("[picker] acceptProposal: respond done, clearing preview");
+    console.log("[picker] accept: respond resolved");
     clearPreviewSession(sessionId);
-    console.log("[picker] acceptProposal END");
   }
 
   async function rejectProposal() {
-    console.log("[picker] rejectProposal", { title });
+    console.log("[picker] reject", { title });
     finishedRef.current = true;
     await respond?.("rejected");
     clearPreviewSession(sessionId);

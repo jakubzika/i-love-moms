@@ -8,16 +8,14 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
 const initialFlowerCard: FlowerCard = {
   content: {
     htmlContent:
-      "<h2>Happy Mother's Day, Mom!</h2><p>Thanks for everything.</p>",
+      '<div class="theme-romantic-serif"><h1 class="card-title">Happy Mother\'s Day</h1><p class="card-content">Thank you for everything, Mom &mdash; today and every day.</p></div>',
   },
   bouquet: {
     flowers: [
@@ -48,7 +46,6 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
     initialState: initialFlowerCard,
   });
   const [localCard, setLocalCard] = useState<FlowerCard | null>(null);
-  const lastCommittedRef = useRef<FlowerCard | null>(null);
   const [previewState, setPreviewState] = useState<{
     activePreviewSessionId: string | null;
     card: FlowerCard | null;
@@ -57,35 +54,13 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
     card: null,
   });
 
-  useEffect(() => {
-    console.log("[flower-card] agentState changed", {
-      agentStateBg: agentState?.background,
-      agentStateFlowers: agentState?.bouquet?.flowers?.length,
-      hasLocalCard: !!localCard,
-      localCardBg: localCard?.background,
-      lastCommittedBg: lastCommittedRef.current?.background,
-      agentEqualsLastCommitted: agentState === lastCommittedRef.current,
-    });
-    if (
-      localCard &&
-      lastCommittedRef.current &&
-      agentState &&
-      agentState !== lastCommittedRef.current
-    ) {
-      console.log("[flower-card] CLEARING localCard (agent diverged from commit)");
-      setLocalCard(null);
-      lastCommittedRef.current = null;
-    }
-  }, [agentState, localCard]);
+  // Once the user commits a card via setState, localCard is authoritative.
+  // The agent's state can drift (or reset on a failed run) without affecting
+  // what the user sees. A future agent-driven update should call setState.
 
   const committedState = localCard ?? agentState ?? initialFlowerCard;
   const setState = useCallback(
     (card: FlowerCard) => {
-      console.log("[flower-card] setState called", {
-        bg: card.background,
-        flowers: card.bouquet.flowers.length,
-      });
-      lastCommittedRef.current = card;
       setLocalCard(card);
       setAgentState(card);
     },
@@ -98,6 +73,7 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
   const beginPreviewSession = useCallback((sessionId: string) => {
+    console.log("[ctx] beginPreviewSession", { sessionId });
     setPreviewState({
       activePreviewSessionId: sessionId,
       card: null,
@@ -106,7 +82,14 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
   const previewCardForSession = useCallback(
     (sessionId: string, card: FlowerCard) => {
       setPreviewState((current) => {
-        if (current.activePreviewSessionId !== sessionId) {
+        const matches = current.activePreviewSessionId === sessionId;
+        console.log("[ctx] previewCardForSession", {
+          sessionId,
+          activePreviewSessionId: current.activePreviewSessionId,
+          matches,
+          bg: card.background,
+        });
+        if (!matches) {
           return current;
         }
 
@@ -120,7 +103,9 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
   );
   const clearPreviewSession = useCallback((sessionId: string) => {
     setPreviewState((current) => {
-      if (current.activePreviewSessionId !== sessionId) {
+      const matches = current.activePreviewSessionId === sessionId;
+      console.log("[ctx] clearPreviewSession", { sessionId, matches });
+      if (!matches) {
         return current;
       }
 
