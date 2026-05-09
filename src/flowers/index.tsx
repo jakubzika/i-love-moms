@@ -542,7 +542,7 @@ function BendableStem({
   flower: Flower;
   seed: number;
 }) {
-  const { curve, stemRadius, quaternion, stemColor, roughness, taper } =
+  const { curve, stemRadius, quaternion, stemColor } =
     useMemo(() => {
       const c = makeBendableStemCurve(base, head, seed);
       const rand = mulberry32(seed);
