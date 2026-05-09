@@ -79,16 +79,26 @@ export function FlowerProposalPicker({
 
   async function acceptProposal() {
     if (!selectedProposal) {
+      console.log("[picker] acceptProposal: no selectedProposal, bailing");
       return;
     }
 
+    console.log("[picker] acceptProposal START", {
+      title,
+      id: selectedProposal.id,
+      bg: selectedProposal.card.background,
+    });
     finishedRef.current = true;
     setState(selectedProposal.card);
+    console.log("[picker] acceptProposal: setState done, awaiting respond");
     await respond?.(`accepted:${selectedProposal.id}`);
+    console.log("[picker] acceptProposal: respond done, clearing preview");
     clearPreviewSession(sessionId);
+    console.log("[picker] acceptProposal END");
   }
 
   async function rejectProposal() {
+    console.log("[picker] rejectProposal", { title });
     finishedRef.current = true;
     await respond?.("rejected");
     clearPreviewSession(sessionId);

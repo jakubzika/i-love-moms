@@ -8,7 +8,9 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -23,6 +25,7 @@ const initialFlowerCard: FlowerCard = {
       { type: FLOWER_PRESETS.babysBreath.type, count: 12 },
     ],
   },
+  background: "ivory",
 };
 
 type FlowerCardContextValue = {
@@ -40,10 +43,12 @@ type FlowerCardContextValue = {
 const FlowerCardContext = createContext<FlowerCardContextValue | null>(null);
 
 export function FlowerCardProvider({ children }: { children: ReactNode }) {
-  const { state, setState } = useCoAgent<FlowerCard>({
+  const { state: agentState, setState: setAgentState } = useCoAgent<FlowerCard>({
     name: "weatherAgent",
     initialState: initialFlowerCard,
   });
+  const [localCard, setLocalCard] = useState<FlowerCard | null>(null);
+  const lastCommittedRef = useRef<FlowerCard | null>(null);
   const [previewState, setPreviewState] = useState<{
     activePreviewSessionId: string | null;
     card: FlowerCard | null;
@@ -52,7 +57,40 @@ export function FlowerCardProvider({ children }: { children: ReactNode }) {
     card: null,
   });
 
-  const committedState = state ?? initialFlowerCard;
+  useEffect(() => {
+    console.log("[flower-card] agentState changed", {
+      agentStateBg: agentState?.background,
+      agentStateFlowers: agentState?.bouquet?.flowers?.length,
+      hasLocalCard: !!localCard,
+      localCardBg: localCard?.background,
+      lastCommittedBg: lastCommittedRef.current?.background,
+      agentEqualsLastCommitted: agentState === lastCommittedRef.current,
+    });
+    if (
+      localCard &&
+      lastCommittedRef.current &&
+      agentState &&
+      agentState !== lastCommittedRef.current
+    ) {
+      console.log("[flower-card] CLEARING localCard (agent diverged from commit)");
+      setLocalCard(null);
+      lastCommittedRef.current = null;
+    }
+  }, [agentState, localCard]);
+
+  const committedState = localCard ?? agentState ?? initialFlowerCard;
+  const setState = useCallback(
+    (card: FlowerCard) => {
+      console.log("[flower-card] setState called", {
+        bg: card.background,
+        flowers: card.bouquet.flowers.length,
+      });
+      lastCommittedRef.current = card;
+      setLocalCard(card);
+      setAgentState(card);
+    },
+    [setAgentState],
+  );
   const setPreviewCard = useCallback((card: FlowerCard | null) => {
     setPreviewState((current) => ({
       ...current,

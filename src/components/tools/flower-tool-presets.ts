@@ -1,5 +1,11 @@
 import { FLOWER_PRESETS, type Flower } from "@/flowers/flower";
-import type { FlowerCard, FlowerType } from "@/flowers/schema";
+import { BACKGROUND_PRESETS } from "@/flowers/backgrounds";
+import {
+  ALL_BACKGROUND_PRESETS,
+  type BackgroundPreset,
+  type FlowerCard,
+  type FlowerType,
+} from "@/flowers/schema";
 import type { FlowerCardProposal } from "./flower-tool-types";
 
 type FlowerTypeOption = {
@@ -140,6 +146,7 @@ function cloneCard(card: FlowerCard): FlowerCard {
     bouquet: {
       flowers: card.bouquet.flowers.map(cloneBouquetEntry),
     },
+    background: card.background,
   };
 }
 
@@ -153,13 +160,14 @@ export function createFlowerOfType(
   };
 }
 
-export function getPresetChoiceProposals(): FlowerCardProposal[] {
+export function getPresetChoiceProposals(card: FlowerCard): FlowerCardProposal[] {
   return [
     {
       id: "classic-roses",
       title: "Classic Roses",
       description: "A warm message with red roses and baby's breath.",
       card: {
+        ...cloneCard(card),
         content: {
           htmlContent:
             "<h2>Happy Mother's Day, Mom!</h2><p>Thank you for every kind word, every bit of patience, and every day you made brighter.</p>",
@@ -170,6 +178,7 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
             { type: FLOWER_PRESETS.babysBreath.type, count: 12 },
           ],
         },
+        background: "blush",
       },
     },
     {
@@ -177,6 +186,7 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
       title: "Spring Garden",
       description: "Tulips, peonies, and daisies with a cheerful note.",
       card: {
+        ...cloneCard(card),
         content: {
           htmlContent:
             "<h2>For The Best Mom</h2><p>You bring color, care, and joy into every season.</p>",
@@ -188,6 +198,7 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
             { type: FLOWER_PRESETS.daisy.type, count: 6 },
           ],
         },
+        background: "sage",
       },
     },
     {
@@ -195,6 +206,7 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
       title: "Sunny Thanks",
       description: "Sunflowers and lavender with a bright thank-you message.",
       card: {
+        ...cloneCard(card),
         content: {
           htmlContent:
             "<h2>Thank You, Mom</h2><p>Your love is steady, generous, and full of light.</p>",
@@ -206,10 +218,29 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
             { type: FLOWER_PRESETS.yellowTulip.type, count: 4 },
           ],
         },
+        background: "buttercream",
       },
     },
   ];
 }
+
+export function getBackgroundProposals(card: FlowerCard): FlowerCardProposal[] {
+  return ALL_BACKGROUND_PRESETS.map((preset) => {
+    const spec = BACKGROUND_PRESETS[preset];
+    return {
+      id: `bg-${preset}`,
+      title: spec.title,
+      description: spec.description,
+      card: {
+        ...cloneCard(card),
+        background: preset,
+      },
+    };
+  });
+}
+
+export const ALL_BACKGROUND_PRESET_IDS: BackgroundPreset[] =
+  ALL_BACKGROUND_PRESETS;
 
 export function getPresetCardProposals(card: FlowerCard): FlowerCardProposal[] {
   return [
