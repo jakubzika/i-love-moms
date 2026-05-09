@@ -4,6 +4,7 @@ import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
 import { Color, Quaternion, Vector3 } from "three";
+import { getBackgroundCss } from "./backgrounds";
 import { CARD_SIZE } from "./constants";
 import { defaultFlower, type Flower } from "./flower";
 import {
@@ -640,12 +641,17 @@ function Bouquet({ card }: { card: FlowerCard }) {
 }
 
 export function FlowerCardPreview({ card }: { card: FlowerCard }) {
+  const backgroundCss = getBackgroundCss(card.background);
   return (
     <div
       className="mx-auto overflow-hidden relative"
-      style={{ width: CARD_SIZE.width, height: CARD_SIZE.height }}
+      style={{
+        width: CARD_SIZE.width,
+        height: CARD_SIZE.height,
+        background: backgroundCss,
+      }}
     >
-      <Canvas shadows frameloop="demand">
+      <Canvas shadows frameloop="demand" style={{ background: "transparent" }}>
         <PerspectiveCamera
           makeDefault
           position={[12.24, 24.9, 12.95]}

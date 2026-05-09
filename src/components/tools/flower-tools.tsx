@@ -1,6 +1,7 @@
 "use client";
 
 import { useCopilotAction } from "@copilotkit/react-core";
+import { BackgroundPickerTool } from "./background-picker-tool";
 import { FlowerPickerTool } from "./flower-picker-tool";
 import { FlowerTypeVariationsTool } from "./flower-type-variations-tool";
 import { PresetCardsTool } from "./preset-cards-tool";
@@ -50,6 +51,18 @@ export function FlowerTools() {
       "Show preset mixed flower type variations for the current card, such as two roses and three tulips. Wait for the user to accept or reject one.",
     renderAndWaitForResponse: ({ respond, status }) => (
       <FlowerTypeVariationsTool
+        status={status as FlowerToolStatus}
+        respond={respond}
+      />
+    ),
+  });
+
+  useCopilotAction({
+    name: "background-picker",
+    description:
+      "Show background color presets for the card and let the user pick one. Use when the user mentions card color, background, mood, or wants to recolor the card. Wait for the user to accept or reject the choice.",
+    renderAndWaitForResponse: ({ respond, status }) => (
+      <BackgroundPickerTool
         status={status as FlowerToolStatus}
         respond={respond}
       />

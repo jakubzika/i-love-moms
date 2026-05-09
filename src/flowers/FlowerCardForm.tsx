@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { BACKGROUND_PRESETS } from "./backgrounds";
 import { FlowerCardPreview } from "./index";
 import {
+  ALL_BACKGROUND_PRESETS,
   ALL_FLOWER_TYPES,
+  type BackgroundPreset,
   type BouquetEntry,
   type FlowerCard,
   type FlowerType,
@@ -49,6 +52,7 @@ export default function FlowerCardForm() {
   const [counts, setCounts] =
     useState<Record<FlowerType, number>>(initialCounts);
   const [htmlContent, setHtmlContent] = useState(initialHtml);
+  const [background, setBackground] = useState<BackgroundPreset>("ivory");
 
   const flowers: BouquetEntry[] = ALL_FLOWER_TYPES.flatMap((type) => {
     const count = counts[type];
@@ -58,6 +62,7 @@ export default function FlowerCardForm() {
   const card: FlowerCard = {
     content: { htmlContent },
     bouquet: { flowers },
+    background,
   };
 
   const setCount = (type: FlowerType, value: number) => {
@@ -78,6 +83,35 @@ export default function FlowerCardForm() {
             rows={3}
             className="w-full font-mono text-xs p-2 border rounded bg-white"
           />
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-sm font-mono opacity-70">background</h2>
+          <div className="grid grid-cols-2 gap-1.5">
+            {ALL_BACKGROUND_PRESETS.map((preset) => {
+              const spec = BACKGROUND_PRESETS[preset];
+              const isActive = background === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setBackground(preset)}
+                  className={[
+                    "rounded border p-2 text-left font-mono text-xs",
+                    isActive
+                      ? "border-neutral-950 ring-2 ring-neutral-950"
+                      : "border-neutral-300 hover:bg-muted",
+                  ].join(" ")}
+                >
+                  <div
+                    className="h-6 w-full rounded mb-1 border border-black/10"
+                    style={{ background: spec.css }}
+                  />
+                  {spec.title}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-2">

@@ -5,6 +5,18 @@ export const ContentSchema = z.object({
 });
 export type Content = z.infer<typeof ContentSchema>;
 
+export const BackgroundPresetSchema = z.enum([
+  "ivory",
+  "blush",
+  "sage",
+  "lavender-mist",
+  "peach-sunset",
+  "midnight",
+  "buttercream",
+  "rose-quartz",
+]);
+export type BackgroundPreset = z.infer<typeof BackgroundPresetSchema>;
+
 export const FlowerTypeSchema = z.enum([
   "rose",
   "tulip",
@@ -35,7 +47,10 @@ export type Bouquet = z.infer<typeof BouquetSchema>;
 export const FlowerCardSchema = z.object({
   content: ContentSchema,
   bouquet: BouquetSchema,
+  background: BackgroundPresetSchema.default("ivory"),
 });
 export type FlowerCard = z.infer<typeof FlowerCardSchema>;
 
 export const ALL_FLOWER_TYPES: FlowerType[] = FlowerTypeSchema.options;
+export const ALL_BACKGROUND_PRESETS: BackgroundPreset[] =
+  BackgroundPresetSchema.options;
