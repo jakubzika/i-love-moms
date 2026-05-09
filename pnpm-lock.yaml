@@ -14,9 +14,9 @@ importers:
       '@ag-ui/mastra':
         specifier: beta
         version: 0.2.1-beta.2(a75f12c82e052bdaa74a3f4748d5d7d2)
-      '@ai-sdk/openai':
-        specifier: ^2.0.42
-        version: 2.0.106(zod@3.25.76)
+      '@ai-sdk/google':
+        specifier: ^3.0.71
+        version: 3.0.71(zod@3.25.76)
       '@copilotkit/react-core':
         specifier: 1.57.1
         version: 1.57.1(@types/mdast@4.0.4)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(graphql@16.14.0)(micromark-util-types@2.0.2)(micromark@4.0.2)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(zod@3.25.76)
