@@ -1,20 +1,23 @@
-import { google } from "@ai-sdk/google";
 import { Agent } from "@mastra/core/agent";
 import { weatherTool } from "@/mastra/tools";
 import { LibSQLStore } from "@mastra/libsql";
-import { z } from "zod";
 import { Memory } from "@mastra/memory";
+import { FlowerCardSchema } from "@/flowers/schema";
 
-export const AgentState = z.object({
-  proverbs: z.array(z.string()).default([]),
-});
+export const FlowerCardStateSchema = FlowerCardSchema;
 
 export const weatherAgent = new Agent({
   id: "weather-agent",
   name: "Weather Agent",
   tools: { weatherTool },
-  model: google("gemini-2.5-flash"),
-  instructions: "You are a helpful assistant.",
+  model: {
+    providerId: "featherless",
+    modelId: "google/gemma-4-31B-it",
+    url: "https://api.featherless.ai/v1",
+    apiKey: process.env.FEATHERLESS_API_KEY,
+  },
+  instructions:
+    "You are a helpful assistant for editing Mother's Day flower cards. Use frontend actions when the user wants presets, card content, flower type picking, or flower type variations.",
   memory: new Memory({
     storage: new LibSQLStore({
       id: "weather-agent-memory",
@@ -23,7 +26,7 @@ export const weatherAgent = new Agent({
     options: {
       workingMemory: {
         enabled: true,
-        schema: AgentState,
+        schema: FlowerCardStateSchema,
         scope: "thread",
       },
     },
