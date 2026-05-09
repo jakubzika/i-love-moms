@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "copilotkit": {
+      "source": "copilotkit/skills",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "bf59ab99d3d6ea02b6151ff9745ab6a61154f90eea3d627bf3f59bb8fc61405f"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
