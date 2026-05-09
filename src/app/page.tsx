@@ -28,7 +28,7 @@ export default function CopilotKitPage() {
 
   return (
     <main
-      className="flex"
+      className="flex h-screen overflow-hidden"
       style={
         { "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties
       }
@@ -36,7 +36,7 @@ export default function CopilotKitPage() {
       <YourMainContent themeColor={themeColor} />
       <div className="w-xl">
         <CopilotChat
-          className="h-full"
+          className="h-screen"
           disableSystemMessage={true}
           labels={{
             title: "Popup Assistant",
