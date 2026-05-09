@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { useMemo } from "react";
 import { Color, Quaternion, Vector3 } from "three";
-import type { FlowerCard } from "./schema";
-import { defaultFlower, type Flower } from "./flower";
 import { CARD_SIZE } from "./constants";
+import { defaultFlower, type Flower } from "./flower";
 import {
-  DoubleSide,
   buildStemLeaves,
   hashSeed,
   makeBendableStemCurve,
@@ -25,7 +23,7 @@ import {
   createRisoStemMaterial,
   getFlowerPalette,
 } from "./risoMaterial";
-import type { FlowerType } from "./schema";
+import type { FlowerCard, FlowerType } from "./schema";
 
 type PetalLayer = {
   count: number;
@@ -644,7 +642,7 @@ function Bouquet({ card }: { card: FlowerCard }) {
 export function FlowerCardPreview({ card }: { card: FlowerCard }) {
   return (
     <div
-      className="mx-auto overflow-hidden border relative"
+      className="mx-auto overflow-hidden relative"
       style={{ width: CARD_SIZE.width, height: CARD_SIZE.height }}
     >
       <Canvas shadows frameloop="demand">

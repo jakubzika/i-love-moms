@@ -5,7 +5,7 @@ export function FlowerPreview() {
   const { displayCard } = useFlowerCard();
 
   return (
-    <pre className="overflow-auto whitespace-pre-wrap rounded-lg border ">
+    <pre className="overflow-auto bg-white border shadow-xl">
       <FlowerCardPreview card={displayCard} />
     </pre>
   );

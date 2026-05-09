@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ToolConfirmationBar } from "./tool-confirmation";
 
 type ToolItemProps = {
   title: string;
@@ -17,6 +18,10 @@ export function ToolItem({ title, description, children }: ToolItemProps) {
       </div>
 
       {children}
+
+      <div className="mt-4">
+        <ToolConfirmationBar />
+      </div>
     </div>
   );
 }

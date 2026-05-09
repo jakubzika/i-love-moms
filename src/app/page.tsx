@@ -2,7 +2,6 @@
 
 import { FlowerTools } from "@/components/tools/flower-tools";
 import {
-  ToolConfirmationBar,
   ToolConfirmationProvider,
   useHasActiveToolConfirmation,
 } from "@/components/tools/tool-confirmation";
@@ -141,10 +140,7 @@ function FlowerChatMessages({
         )}
         <div ref={messagesEndRef} />
       </div>
-      <footer className="copilotKitMessagesFooter">
-        <ToolConfirmationBar />
-        {children}
-      </footer>
+      <footer className="copilotKitMessagesFooter">{children}</footer>
     </div>
   );
 }
