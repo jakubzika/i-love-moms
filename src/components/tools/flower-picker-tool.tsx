@@ -54,7 +54,7 @@ export function FlowerPickerTool({ status, respond }: FlowerPickerToolProps) {
     [hasExistingFlowers, selectedTypes, state, typeCounts],
   );
   const selectedTypeList = selectedCard.bouquet.flowers.flatMap((flower) =>
-    Array.from({ length: flower.quantity }, () => flower.type),
+    Array.from({ length: flower.count }, () => flower.type),
   );
   const responseTypeList = hasExistingFlowers
     ? selectedCard.bouquet.flowers.map((flower) => flower.type)
@@ -144,7 +144,7 @@ export function FlowerPickerTool({ status, respond }: FlowerPickerToolProps) {
             >
               <span className="text-xs font-medium uppercase text-neutral-500">
                 Flower {index + 1}
-                {flower.quantity > 1 ? ` (${flower.quantity} stems)` : ""}
+                {flower.count > 1 ? ` (${flower.count} stems)` : ""}
               </span>
               <select
                 value={selectedTypes[index] ?? flower.type}
@@ -214,9 +214,10 @@ function createCardFromSelectedTypes(
   return {
     ...card,
     bouquet: {
-      flowers: card.bouquet.flowers.map((flower, index) =>
-        createFlowerOfType(selectedTypes[index] ?? flower.type, flower.quantity),
-      ),
+      flowers: card.bouquet.flowers.map((flower, index) => {
+        const type = selectedTypes[index] ?? flower.type;
+        return { type, count: flower.count };
+      }),
     },
   };
 }
@@ -230,9 +231,10 @@ function createCardFromTypeCounts(
     bouquet: {
       flowers: flowerTypeOptions
         .filter((option) => typeCounts[option.type] > 0)
-        .map((option) =>
-          createFlowerOfType(option.type, typeCounts[option.type]),
-        ),
+        .map((option) => ({
+          type: option.type,
+          count: typeCounts[option.type],
+        })),
     },
   };
 }

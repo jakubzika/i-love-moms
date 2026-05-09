@@ -1,4 +1,4 @@
-import { Color, MeshStandardMaterial, type Shader } from "three";
+import { Color, MeshStandardMaterial } from "three";
 import type { FlowerType } from "./schema";
 
 export type RisoPalette = {
@@ -110,7 +110,7 @@ vec3 riso_apply(vec3 inputColor, vec2 fragPx) {
 }
 `;
 
-const materialCache = new WeakMap<MeshStandardMaterial, Shader>();
+const materialCache = new WeakMap<MeshStandardMaterial, any>();
 
 export function createRisoPetalMaterial({
   baseColor,

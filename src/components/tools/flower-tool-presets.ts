@@ -1,9 +1,5 @@
-import {
-  FLOWER_PRESETS,
-  type Flower,
-  type FlowerCard,
-  type FlowerType,
-} from "@/flowers/schema";
+import { FLOWER_PRESETS, type Flower } from "@/flowers/flower";
+import type { FlowerCard, FlowerType } from "@/flowers/schema";
 import type { FlowerCardProposal } from "./flower-tool-types";
 
 type FlowerTypeOption = {
@@ -134,15 +130,15 @@ const flowerPresetByType = {
   chrysanthemum: FLOWER_PRESETS.chrysanthemum,
 } satisfies Record<FlowerType, Flower>;
 
-function cloneFlower(flower: Flower): Flower {
-  return { ...flower };
+function cloneBouquetEntry(entry: { type: FlowerType; count: number }): { type: FlowerType; count: number } {
+  return { ...entry };
 }
 
 function cloneCard(card: FlowerCard): FlowerCard {
   return {
     content: { ...card.content },
     bouquet: {
-      flowers: card.bouquet.flowers.map(cloneFlower),
+      flowers: card.bouquet.flowers.map(cloneBouquetEntry),
     },
   };
 }
@@ -170,8 +166,8 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
         },
         bouquet: {
           flowers: [
-            { ...FLOWER_PRESETS.redRose, quantity: 7 },
-            { ...FLOWER_PRESETS.babysBreath, quantity: 12 },
+            { type: FLOWER_PRESETS.redRose.type, count: 7 },
+            { type: FLOWER_PRESETS.babysBreath.type, count: 12 },
           ],
         },
       },
@@ -187,9 +183,9 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
         },
         bouquet: {
           flowers: [
-            { ...FLOWER_PRESETS.pinkTulip, quantity: 5 },
-            { ...FLOWER_PRESETS.peony, quantity: 3 },
-            { ...FLOWER_PRESETS.daisy, quantity: 6 },
+            { type: FLOWER_PRESETS.pinkTulip.type, count: 5 },
+            { type: FLOWER_PRESETS.peony.type, count: 3 },
+            { type: FLOWER_PRESETS.daisy.type, count: 6 },
           ],
         },
       },
@@ -205,9 +201,9 @@ export function getPresetChoiceProposals(): FlowerCardProposal[] {
         },
         bouquet: {
           flowers: [
-            { ...FLOWER_PRESETS.sunflower, quantity: 3 },
-            { ...FLOWER_PRESETS.lavender, quantity: 6 },
-            { ...FLOWER_PRESETS.yellowTulip, quantity: 4 },
+            { type: FLOWER_PRESETS.sunflower.type, count: 3 },
+            { type: FLOWER_PRESETS.lavender.type, count: 6 },
+            { type: FLOWER_PRESETS.yellowTulip.type, count: 4 },
           ],
         },
       },
@@ -266,9 +262,10 @@ export function getFlowerTypeVariationProposals(
     card: {
       ...cloneCard(card),
       bouquet: {
-        flowers: variation.flowers.map(({ type, quantity }) =>
-          createFlowerOfType(type, quantity),
-        ),
+        flowers: variation.flowers.map(({ type, quantity }) => ({
+          type,
+          count: quantity,
+        })),
       },
     },
   }));

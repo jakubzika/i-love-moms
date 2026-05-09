@@ -1,6 +1,7 @@
 "use client";
 
-import { FLOWER_PRESETS, type FlowerCard } from "@/flowers/schema";
+import { FLOWER_PRESETS } from "@/flowers/flower";
+import type { FlowerCard } from "@/flowers/schema";
 import { useCoAgent } from "@copilotkit/react-core";
 import {
   createContext,
@@ -18,8 +19,8 @@ const initialFlowerCard: FlowerCard = {
   },
   bouquet: {
     flowers: [
-      { ...FLOWER_PRESETS.redRose, quantity: 7 },
-      { ...FLOWER_PRESETS.babysBreath, quantity: 12 },
+      { type: FLOWER_PRESETS.redRose.type, count: 7 },
+      { type: FLOWER_PRESETS.babysBreath.type, count: 12 },
     ],
   },
 };
