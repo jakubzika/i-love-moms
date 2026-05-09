@@ -673,9 +673,9 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
             const p = cam.position;
             const t = e.target.target;
             // eslint-disable-next-line no-console
-            console.log(
-              `camera position=[${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}] target=[${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)}]`,
-            );
+            // console.log(
+            //   `camera position=[${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}] target=[${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)}]`,
+            // );
           }}
         />
       </Canvas>

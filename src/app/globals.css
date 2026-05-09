@@ -135,3 +135,88 @@ cpk-web-inspector {
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   }
 }
+
+/* ── Card style presets ────────────────────────────────────────────────
+   Use one of the .theme-* wrappers, or mix .title-* / .content-* per
+   element. Per-element atoms win over theme wrappers thanks to source
+   order below.
+
+   Themes:
+     cottagecore     — warm pastoral, Lobster + EB Garamond
+     calligraphic    — flowing script, Great Vibes + Cormorant Garamond
+     modern-sans     — clean editorial, Bricolage Grotesque + Inter
+     romantic-serif  — classic romance, Playfair Display + Lora
+     handwritten     — hand-noted, Caveat for both
+     storybook       — whimsical, Fraunces + Crimson Pro
+   ──────────────────────────────────────────────────────────────────── */
+
+.theme-cottagecore .card-title,
+.title-cottagecore {
+  font-family: "Lobster", cursive;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.theme-cottagecore .card-content,
+.content-cottagecore {
+  font-family: "EB Garamond", serif;
+  font-weight: 400;
+}
+
+.theme-calligraphic .card-title,
+.title-calligraphic {
+  font-family: "Great Vibes", cursive;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+.theme-calligraphic .card-content,
+.content-calligraphic {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 400;
+}
+
+.theme-modern-sans .card-title,
+.title-modern-sans {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.theme-modern-sans .card-content,
+.content-modern-sans {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+}
+
+.theme-romantic-serif .card-title,
+.title-romantic-serif {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-style: italic;
+}
+.theme-romantic-serif .card-content,
+.content-romantic-serif {
+  font-family: "Lora", serif;
+  font-weight: 400;
+}
+
+.theme-handwritten .card-title,
+.title-handwritten {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+}
+.theme-handwritten .card-content,
+.content-handwritten {
+  font-family: "Caveat", cursive;
+  font-weight: 400;
+}
+
+.theme-storybook .card-title,
+.title-storybook {
+  font-family: "Fraunces", serif;
+  font-weight: 700;
+  font-style: italic;
+}
+.theme-storybook .card-content,
+.content-storybook {
+  font-family: "Crimson Pro", serif;
+  font-weight: 400;
+}
