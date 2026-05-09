@@ -28,8 +28,7 @@ const initialHtml =
   "<h2>Happy Mother's Day, Mom! 🌹</h2><p>Thanks for everything.</p>";
 
 export default function FlowerCardForm() {
-  const [counts, setCounts] =
-    useState<Record<FlowerType, number>>(initialCounts);
+  const [counts, setCounts] = useState<Record<FlowerType, number>>(initialCounts);
   const [htmlContent, setHtmlContent] = useState(initialHtml);
 
   const flowers: BouquetEntry[] = ALL_FLOWER_TYPES.flatMap((type) => {
