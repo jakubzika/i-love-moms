@@ -29,7 +29,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <CopilotKit runtimeUrl="/api/copilotkit" agent="weatherAgent">
+        <CopilotKit
+          runtimeUrl="/api/copilotkit"
+          agent="weatherAgent"
+          showDevConsole={false}
+        >
           {children}
         </CopilotKit>
       </body>
