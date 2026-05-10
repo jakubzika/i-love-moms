@@ -334,7 +334,7 @@ export default function BuilderPage() {
           </div>
 
           {/* Form — pushes the page height; global scrollbar handles it */}
-          <aside className="space-y-7 rounded-2xl bg-white/80 backdrop-blur-xl border border-black/5 shadow-xl p-3 sm:p-5 lg:p-6">
+          <aside className="space-y-7 rounded-2xl bg-white border border-black/5 shadow-xl p-3 sm:p-5 lg:p-6">
             <Section title="Message">
               <Field label="Title">
                 <input
@@ -999,17 +999,21 @@ function ResponsivePreviewBox({
     const el = containerRef.current;
     if (!el) return;
     const aspect = CARD_SIZE.height / CARD_SIZE.width;
+    // Latch the height cap from the *first* layout. iOS Safari shrinks
+    // window.innerHeight when the keyboard opens, which used to cascade
+    // a full WebGL reflow on every input focus. We don't actually want
+    // the preview to reshape just because the keyboard appeared, so
+    // only re-evaluate the height cap when the viewport WIDTH changes.
+    let lastWidth = window.innerWidth;
+    let heightCap = window.innerHeight * 0.6;
+
     const recompute = () => {
       const maxW = Math.max(0, el.clientWidth - 2);
       if (!maxW) return;
-      const maxH = window.innerHeight * 0.6;
-      const widthFromHeight = maxH / aspect;
+      const widthFromHeight = heightCap / aspect;
       const w = Math.min(maxW, widthFromHeight, CARD_SIZE.width);
       const nextW = Math.round(w);
       const nextH = Math.round(w * aspect);
-      // Skip the setState (and the cascade of re-renders) if the size
-      // hasn't actually changed. RO fires on any layout shift in the
-      // ancestor chain, even when our element didn't resize.
       setSize((prev) =>
         prev.width === nextW && prev.height === nextH
           ? prev

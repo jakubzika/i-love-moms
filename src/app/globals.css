@@ -134,6 +134,18 @@ cpk-web-inspector {
     @apply bg-background text-foreground;
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   }
+
+  /* iOS Safari zooms into any input/textarea/select whose computed
+     font-size is below 16px. We design at 14px for visual balance, so
+     bump fields up to 16px only on touch / narrow viewports where the
+     auto-zoom would actually trigger. */
+  @media (max-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
 }
 
 /* ── Card font pairings ────────────────────────────────────────────────
