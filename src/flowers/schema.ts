@@ -14,7 +14,7 @@ export const ContentSchema = z.object({
   title: z.string(),
   body: z.string(),
   signature: z.string(),
-  fontPairing: FontPairingSchema.default("editorial"),
+  fontPairing: FontPairingSchema.default("serif-classic"),
 });
 export type Content = z.infer<typeof ContentSchema>;
 

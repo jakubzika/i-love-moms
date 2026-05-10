@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { BACKGROUND_PRESETS } from "@/flowers/backgrounds";
+import { drawCardText } from "@/flowers/card-text-canvas";
+import { CARD_SIZE } from "@/flowers/constants";
 import {
   FlowerCardPreview,
   type BouquetOptions,
@@ -18,7 +20,7 @@ import {
   type FontPairing,
 } from "@/flowers/schema";
 import { Download, Minus, Plus, Shuffle, Wrench } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 const FLOWER_LABELS: Record<FlowerType, string> = {
   rose: "Rose",
@@ -150,12 +152,13 @@ export default function BuilderPage() {
     "Thank you for everything, Mom — today and every day.",
   );
   const [signature, setSignature] = useState("— with all my love");
-  const [fontPairing, setFontPairing] = useState<FontPairing>("editorial");
-  const [background, setBackground] = useState<BackgroundPreset>("ivory");
+  const [fontPairing, setFontPairing] = useState<FontPairing>("serif-classic");
+  const [background, setBackground] = useState<BackgroundPreset>("blush");
   const [counts, setCounts] = useState<Record<FlowerType, number>>(INITIAL_COUNTS);
 
   // Technical / debug controls
   const [technicalMode, setTechnicalMode] = useState(false);
+  const [flowersInFront, setFlowersInFront] = useState(false);
   const [activePreset, setActivePreset] = useState<string>("balanced");
   const [flowerScales, setFlowerScales] = useState<Record<FlowerType, number>>(
     DEFAULT_FLOWER_SCALES,
@@ -192,17 +195,27 @@ export default function BuilderPage() {
   const [risoPosterize, setRisoPosterize] = useState(4);
   const [risoDither, setRisoDither] = useState(0.6);
 
+  // Split card into stable sub-objects so changing the title doesn't
+  // invalidate `bouquet` (which would force the 3D scene to rebuild).
+  const cardContent = useMemo(
+    () => ({ title, body, signature, fontPairing }),
+    [title, body, signature, fontPairing],
+  );
+  const cardBouquet = useMemo(
+    () => ({
+      flowers: ALL_FLOWER_TYPES.flatMap((type) =>
+        counts[type] > 0 ? [{ type, count: counts[type] }] : [],
+      ),
+    }),
+    [counts],
+  );
   const card: FlowerCard = useMemo(
     () => ({
-      content: { title, body, signature, fontPairing },
-      bouquet: {
-        flowers: ALL_FLOWER_TYPES.flatMap((type) =>
-          counts[type] > 0 ? [{ type, count: counts[type] }] : [],
-        ),
-      },
+      content: cardContent,
+      bouquet: cardBouquet,
       background,
     }),
-    [title, body, signature, fontPairing, background, counts],
+    [cardContent, cardBouquet, background],
   );
 
   const bouquetOptions: BouquetOptions = useMemo(
@@ -298,7 +311,7 @@ export default function BuilderPage() {
       />
       <div className="fixed inset-0 -z-10 bg-neutral-100/70" />
 
-      <div className="mx-auto w-full max-w-7xl px-6 py-10">
+      <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-6 sm:py-8 lg:py-10">
         <header className="mb-8">
           <h1 className="font-instrument text-3xl font-bold tracking-tight text-neutral-950">
             Mother's Day Card
@@ -309,13 +322,19 @@ export default function BuilderPage() {
         </header>
 
         <div className="grid gap-8 items-start lg:grid-cols-[minmax(0,1fr)_28rem]">
-          {/* Preview — sticky to viewport top while page scrolls */}
-          <div className="flex flex-col items-center gap-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)]">
-            <PreviewWithDownload card={card} bouquetOptions={bouquetOptions} />
+          {/* Preview — sticky to viewport top on every screen so it stays
+              visible while the form scrolls. Includes a translucent backdrop
+              on mobile so it reads cleanly above the form panel. */}
+          <div className="sticky top-0 z-20 lg:top-6 lg:z-0 bg-neutral-50 lg:bg-transparent flex flex-col items-stretch gap-2 w-full pt-1 pb-2 lg:pt-0 lg:pb-0 -mt-1 lg:mt-0">
+            <PreviewWithDownload
+              card={card}
+              bouquetOptions={bouquetOptions}
+              flowersInFront={flowersInFront}
+            />
           </div>
 
           {/* Form — pushes the page height; global scrollbar handles it */}
-          <aside className="space-y-7 rounded-2xl bg-white/80 backdrop-blur-xl border border-black/5 shadow-xl p-6">
+          <aside className="space-y-7 rounded-2xl bg-white/80 backdrop-blur-xl border border-black/5 shadow-xl p-3 sm:p-5 lg:p-6">
             <Section title="Message">
               <Field label="Title">
                 <input
@@ -341,6 +360,15 @@ export default function BuilderPage() {
                   className="w-full text-sm p-2.5 border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-neutral-950"
                 />
               </Field>
+              <label className="flex items-center gap-2 text-xs text-neutral-700 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={flowersInFront}
+                  onChange={(e) => setFlowersInFront(e.target.checked)}
+                  className="size-4 rounded border-neutral-300 accent-neutral-950"
+                />
+                Flowers in front of text
+              </label>
             </Section>
 
             <Section title="Typography">
@@ -836,9 +864,11 @@ function BoundsRow({
 function PreviewWithDownload({
   card,
   bouquetOptions,
+  flowersInFront,
 }: {
   card: FlowerCard;
   bouquetOptions?: BouquetOptions;
+  flowersInFront?: boolean;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
@@ -852,13 +882,19 @@ function PreviewWithDownload({
         "[data-card-preview='true']",
       );
       if (!root) return;
-      const webglCanvas = root.querySelector<HTMLCanvasElement>("canvas");
-      if (!webglCanvas) return;
+
+      // Two real canvases live in the preview now: the WebGL one (bouquet)
+      // and a 2D one with the text (drawn via Pretext + Canvas2D). Composite
+      // them at high resolution: redraw the text onto a fresh canvas at the
+      // export size so type stays crisp; scale-blit the WebGL canvas.
+      const canvases = root.querySelectorAll<HTMLCanvasElement>("canvas");
+      if (canvases.length === 0) return;
+      const webglCanvas = canvases[0];
 
       const rect = root.getBoundingClientRect();
-      const scale = 2;
-      const W = Math.round(rect.width * scale);
-      const H = Math.round(rect.height * scale);
+      const exportDpr = Math.max(2, Math.min(4, 1600 / rect.width));
+      const W = Math.round(rect.width * exportDpr);
+      const H = Math.round(rect.height * exportDpr);
 
       const out = document.createElement("canvas");
       out.width = W;
@@ -866,49 +902,147 @@ function PreviewWithDownload({
       const ctx = out.getContext("2d");
       if (!ctx) return;
 
-      paintBackground(ctx, W, H, bgSpec.css);
-      ctx.drawImage(webglCanvas, 0, 0, W, H);
-      drawCardText(ctx, W, H, card, scale);
+      // 1. background.
+      const bg = window.getComputedStyle(root).backgroundImage;
+      const fill = window.getComputedStyle(root).backgroundColor;
+      paintBackground(ctx, W, H, bg !== "none" ? bg : fill);
 
-      out.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "mothers-day-card.png";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, "image/png");
+      // Draw the bouquet and text in whichever order matches the live
+      // z-index toggle. By default (text on top) we paint flowers then
+      // text; with flowersInFront we paint text first, then flowers.
+      await document.fonts.ready;
+      const textOut = document.createElement("canvas");
+      textOut.width = W;
+      textOut.height = H;
+      drawCardText(textOut, card, rect.width, rect.height);
+
+      if (flowersInFront) {
+        ctx.drawImage(textOut, 0, 0);
+        ctx.drawImage(webglCanvas, 0, 0, W, H);
+      } else {
+        ctx.drawImage(webglCanvas, 0, 0, W, H);
+        ctx.drawImage(textOut, 0, 0);
+      }
+
+      const blob: Blob | null = await new Promise((resolve) =>
+        out.toBlob((b) => resolve(b), "image/png"),
+      );
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mothers-day-card.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } finally {
       setDownloading(false);
     }
   }
 
   return (
-    <div ref={wrapperRef} className="flex flex-col items-center gap-4">
-      <div
-        className="overflow-hidden rounded-2xl ring-1 ring-black/5"
-        style={{
-          filter: `drop-shadow(0 30px 60px ${bgSpec.foreground}22) drop-shadow(0 8px 20px ${bgSpec.foreground}1a)`,
-        }}
-      >
-        <FlowerCardPreview card={card} bouquetOptions={bouquetOptions} />
-      </div>
-      <Button
+    <div ref={wrapperRef} className="relative w-full">
+      <ResponsivePreviewBox
+        bgSpec={bgSpec}
+        render={(size) => (
+          <FlowerCardPreview
+            card={card}
+            bouquetOptions={bouquetOptions}
+            size={size}
+            flowersInFront={flowersInFront}
+          />
+        )}
+      />
+      <button
         type="button"
-        size="sm"
         onClick={downloadCard}
         disabled={downloading}
-        className="shadow-md"
+        title={downloading ? "Saving…" : "Download"}
+        aria-label="Download card"
+        className="absolute top-2 right-2 size-8 rounded-full bg-white/80 hover:bg-white text-neutral-800 shadow-sm backdrop-blur-sm border border-black/5 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <Download data-icon="inline-start" className="size-3.5" />
-        {downloading ? "Saving…" : "Download"}
-      </Button>
+        <Download className="size-3.5" />
+      </button>
+      <p className="mt-2 text-center text-[11px] text-neutral-500">
+        Drag to rotate · two-finger pinch / shift + drag to pan
+      </p>
     </div>
   );
 }
+
+/** Wraps the FlowerCardPreview in a CSS transform-scale so the card's
+ * internal layout (fonts, padding, spacing) stays exactly as designed,
+ * just rendered smaller. The Canvas inside still renders at its native
+ * 600×850 pixels because ResizeObserver reports pre-transform layout
+ * size, not the visually-scaled rect. */
+/** Computes a CSS pixel size that fits the available width and viewport
+ * height while preserving the 600:850 aspect ratio, then asks the
+ * caller to render the card at that size. No CSS transforms — R3F sees
+ * a real, properly-sized DOM parent and the WebGL canvas renders
+ * correctly at every screen size. */
+function ResponsivePreviewBox({
+  bgSpec,
+  render,
+}: {
+  bgSpec: { foreground: string };
+  render: (size: { width: number; height: number }) => React.ReactNode;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ width: number; height: number }>({
+    width: CARD_SIZE.width,
+    height: CARD_SIZE.height,
+  });
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const aspect = CARD_SIZE.height / CARD_SIZE.width;
+    const recompute = () => {
+      const maxW = Math.max(0, el.clientWidth - 2);
+      if (!maxW) return;
+      const maxH = window.innerHeight * 0.6;
+      const widthFromHeight = maxH / aspect;
+      const w = Math.min(maxW, widthFromHeight, CARD_SIZE.width);
+      const nextW = Math.round(w);
+      const nextH = Math.round(w * aspect);
+      // Skip the setState (and the cascade of re-renders) if the size
+      // hasn't actually changed. RO fires on any layout shift in the
+      // ancestor chain, even when our element didn't resize.
+      setSize((prev) =>
+        prev.width === nextW && prev.height === nextH
+          ? prev
+          : { width: nextW, height: nextH },
+      );
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(el);
+    window.addEventListener("resize", recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-full max-w-full flex justify-center">
+      <div
+        className="overflow-hidden rounded-2xl ring-1 ring-black/5"
+        style={{
+          width: size.width,
+          height: size.height,
+          filter: `drop-shadow(0 30px 60px ${bgSpec.foreground}22) drop-shadow(0 8px 20px ${bgSpec.foreground}1a)`,
+        }}
+      >
+        {render(size)}
+      </div>
+    </div>
+  );
+}
+
+/* ── Export helpers ───────────────────────────────────────────────── */
 
 function paintBackground(
   ctx: CanvasRenderingContext2D,
@@ -917,7 +1051,7 @@ function paintBackground(
   css: string,
 ) {
   if (!css.startsWith("linear-gradient")) {
-    ctx.fillStyle = css;
+    ctx.fillStyle = css || "#ffffff";
     ctx.fillRect(0, 0, w, h);
     return;
   }
@@ -927,7 +1061,23 @@ function paintBackground(
     ctx.fillRect(0, 0, w, h);
     return;
   }
-  const parts = splitTopLevel(match[1]);
+  // Split on top-level commas only.
+  const parts: string[] = [];
+  {
+    let depth = 0;
+    let buf = "";
+    for (const ch of match[1]) {
+      if (ch === "(") depth++;
+      else if (ch === ")") depth--;
+      if (ch === "," && depth === 0) {
+        parts.push(buf);
+        buf = "";
+      } else {
+        buf += ch;
+      }
+    }
+    if (buf) parts.push(buf);
+  }
   const angleStr = parts[0]?.trim() ?? "180deg";
   const angleDeg = parseFloat(angleStr.replace("deg", "")) || 135;
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -941,124 +1091,9 @@ function paintBackground(
     const stop = parts[i].trim();
     const m = stop.match(/^(.+?)\s+(\d+(?:\.\d+)?)%$/);
     if (m) grad.addColorStop(parseFloat(m[2]) / 100, m[1].trim());
-    else grad.addColorStop((i - 1) / (parts.length - 2), stop);
+    else grad.addColorStop((i - 1) / Math.max(1, parts.length - 2), stop);
   }
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 }
 
-function splitTopLevel(input: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let buf = "";
-  for (const ch of input) {
-    if (ch === "(") depth++;
-    else if (ch === ")") depth--;
-    if (ch === "," && depth === 0) {
-      parts.push(buf);
-      buf = "";
-    } else {
-      buf += ch;
-    }
-  }
-  if (buf) parts.push(buf);
-  return parts;
-}
-
-function drawCardText(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  card: FlowerCard,
-  scale: number,
-) {
-  const pairing = FONT_PAIRINGS[card.content.fontPairing];
-  const bgSpec = BACKGROUND_PRESETS[card.background];
-
-  const padding = 20 * scale;
-  const x = padding;
-  const maxW = w - padding * 2;
-
-  ctx.fillStyle = bgSpec.foreground;
-  ctx.textBaseline = "top";
-
-  const titleSize = 30 * scale;
-  const bodySize = 16 * scale;
-  const sigSize = 14 * scale;
-  const titleFont = `700 ${titleSize}px "${pairing.titleFamily}", serif`;
-  const bodyFont = `400 ${bodySize}px "${pairing.bodyFamily}", sans-serif`;
-  const sigFont = `italic 400 ${sigSize}px "${pairing.bodyFamily}", sans-serif`;
-
-  // Pass 1: measure
-  let totalH = 0;
-  ctx.font = titleFont;
-  totalH += wrapText(ctx, card.content.title, 0, 0, maxW, titleSize * 1.1, true);
-  totalH += 8 * scale;
-  ctx.font = bodyFont;
-  for (const line of card.content.body.split("\n")) {
-    totalH += wrapText(ctx, line, 0, 0, maxW, bodySize * 1.5, true);
-  }
-  if (card.content.signature) {
-    totalH += 6 * scale;
-    ctx.font = sigFont;
-    totalH += wrapText(
-      ctx,
-      card.content.signature,
-      0,
-      0,
-      maxW,
-      sigSize * 1.4,
-      true,
-    );
-  }
-
-  // Pass 2: paint, bottom-aligned
-  let y = h - padding - totalH;
-
-  ctx.font = titleFont;
-  y = wrapText(ctx, card.content.title, x, y, maxW, titleSize * 1.1, false);
-
-  y += 8 * scale;
-  ctx.font = bodyFont;
-  for (const line of card.content.body.split("\n")) {
-    y = wrapText(ctx, line, x, y, maxW, bodySize * 1.5, false);
-  }
-
-  if (card.content.signature) {
-    y += 6 * scale;
-    ctx.font = sigFont;
-    const prevAlpha = ctx.globalAlpha;
-    ctx.globalAlpha = 0.85;
-    wrapText(ctx, card.content.signature, x, y, maxW, sigSize * 1.4, false);
-    ctx.globalAlpha = prevAlpha;
-  }
-}
-
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  dryRun = false,
-): number {
-  const words = text.split(/\s+/);
-  let line = "";
-  let cursor = y;
-  for (const word of words) {
-    const test = line ? line + " " + word : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      if (!dryRun) ctx.fillText(line, x, cursor);
-      cursor += lineHeight;
-      line = word;
-    } else {
-      line = test;
-    }
-  }
-  if (line) {
-    if (!dryRun) ctx.fillText(line, x, cursor);
-    cursor += lineHeight;
-  }
-  return dryRun ? cursor - y : cursor;
-}

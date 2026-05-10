@@ -2,7 +2,7 @@
 
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Color, Quaternion, Vector3 } from "three";
 import { BACKGROUND_PRESETS, getBackgroundCss } from "./backgrounds";
 import { CARD_SIZE } from "./constants";
@@ -28,6 +28,7 @@ import {
   type RisoOverrides,
 } from "./risoMaterial";
 import type { FlowerCard, FlowerType } from "./schema";
+import { CardTextCanvas } from "./card-text-canvas";
 
 export type FlowerBoundsOverride = {
   /** Multiplier on rx (default 1). */
@@ -549,11 +550,18 @@ function buildRecipe(flower: Flower, rand: () => number): FlowerRecipe {
   }
 }
 
+let __headRecipeCount = 0;
 export function FlowerHead({ flower }: { flower: Flower }) {
   const override = (flower as Flower & { __scaleOverride?: number })
     .__scaleOverride;
   const scale = override ?? sizeScale(flower.size);
   const recipe = useMemo(() => {
+    __headRecipeCount++;
+    console.log(
+      "[perf] head recipe",
+      __headRecipeCount,
+      flower.type,
+    );
     const seed = hashSeed(`${flower.type}:${flower.color}`);
     const rand = mulberry32(seed);
     return buildRecipe(flower, rand);
@@ -593,6 +601,9 @@ export function FlowerHead({ flower }: { flower: Flower }) {
   );
 }
 
+// Module-level counter for stem rebuilds — useful to see whether a tiny
+// state change is causing all N stems to recompute their tube geometry.
+let __stemBuildCount = 0;
 function BendableStem({
   base,
   head,
@@ -607,6 +618,8 @@ function BendableStem({
   seed: number;
 }) {
   const { curve, stemRadius, quaternion, stemColor } = useMemo(() => {
+    __stemBuildCount++;
+    console.log("[perf] stem build", __stemBuildCount, "seed=" + seed);
     const c = makeBendableStemCurve(base, head, seed);
     const rand = mulberry32(seed);
     const radius = 0.009 + rand() * 0.006;
@@ -680,9 +693,16 @@ function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions
     if (options?.riso) setRisoUniforms(options.riso);
   }, [options?.riso]);
 
+  // Render counter — logs every Bouquet render so we can see how often
+  // the whole 3D scene wants to rebuild on parameter changes.
+  const renderCount = useRef(0);
+  renderCount.current++;
+  console.log("[perf] Bouquet render", renderCount.current);
+
   const expanded = useMemo(
-    () =>
-      (card.bouquet?.flowers ?? []).flatMap((entry, ei) =>
+    () => {
+      console.time("[perf] Bouquet.expanded");
+      const out = (card.bouquet?.flowers ?? []).flatMap((entry, ei) =>
         Array.from({ length: Math.max(1, entry.count) }, (_, qi) => {
           const flower = defaultFlower(entry.type);
           const sizeOverride = options?.perFlowerScale?.[entry.type];
@@ -696,8 +716,13 @@ function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions
             seed: hashSeed(`${flower.type}:${flower.color}:${ei}:${qi}`),
           };
         }),
-      ),
-    [card, options?.perFlowerScale],
+      );
+      console.timeEnd("[perf] Bouquet.expanded");
+      return out;
+    },
+    // Depend only on the bouquet field, NOT the whole card. Title/body
+    // changes don't affect flower placement.
+    [card.bouquet, options?.perFlowerScale],
   );
 
   const baseY = options?.baseY ?? 1.6;
@@ -768,25 +793,45 @@ function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions
 export function FlowerCardPreview({
   card,
   bouquetOptions,
+  size,
+  flowersInFront = false,
 }: {
   card: FlowerCard;
   bouquetOptions?: BouquetOptions;
+  /** Optional CSS size override. Defaults to CARD_SIZE. */
+  size?: { width: number; height: number };
+  /** When true, the 3D flowers render on top of the text. */
+  flowersInFront?: boolean;
 }) {
   const backgroundCss = getBackgroundCss(card.background);
+  const w = size?.width ?? CARD_SIZE.width;
+  const h = size?.height ?? CARD_SIZE.height;
   return (
     <div
       data-card-preview="true"
       className="mx-auto overflow-hidden relative"
       style={{
-        width: CARD_SIZE.width,
-        height: CARD_SIZE.height,
+        width: w,
+        height: h,
         background: backgroundCss,
+        // Force a stacking context so the canvas/text z-index swap below
+        // is contained to this box.
+        isolation: "isolate",
       }}
     >
       <Canvas
         frameloop="demand"
         gl={{ preserveDrawingBuffer: true }}
-        style={{ background: "transparent" }}
+        style={{
+          background: "transparent",
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          // Layer-order toggle: 3 keeps the WebGL on top of the text
+          // canvas (z=2) when flowersInFront is true; 1 puts text above.
+          zIndex: flowersInFront ? 3 : 1,
+        }}
       >
         <PerspectiveCamera
           makeDefault
@@ -820,26 +865,15 @@ export function FlowerCardPreview({
           }}
         />
       </Canvas>
-      <div
-        className={`pairing-${card.content.fontPairing} max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 p-5 pointer-events-none overflow-hidden flex flex-col justify-end gap-3`}
-        style={{
-          width: "100%",
-          height: "33%",
-          color: BACKGROUND_PRESETS[card.background].foreground,
-        }}
-      >
-        <h1 className="card-title text-3xl leading-tight m-0">
-          {card.content.title}
-        </h1>
-        <p className="card-body text-base leading-relaxed m-0 whitespace-pre-line">
-          {card.content.body}
-        </p>
-        {card.content.signature ? (
-          <p className="card-signature text-sm m-0 mt-1">
-            {card.content.signature}
-          </p>
-        ) : null}
-      </div>
+      {/* Text rendered via Pretext + Canvas2D. Same pixels live and
+          on download — no DOM/SVG/font-loading dance. */}
+      <CardTextCanvas
+        card={card}
+        width={w}
+        height={h}
+        className="absolute left-0 top-0 pointer-events-none"
+        style={{ zIndex: 2 }}
+      />
     </div>
   );
 }

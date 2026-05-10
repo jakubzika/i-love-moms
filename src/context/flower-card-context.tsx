@@ -17,7 +17,7 @@ const initialFlowerCard: FlowerCard = {
     title: "Happy Mother's Day",
     body: "Thank you for everything, Mom — today and every day.",
     signature: "— with all my love",
-    fontPairing: "editorial",
+    fontPairing: "serif-classic",
   },
   bouquet: {
     flowers: [
@@ -25,7 +25,7 @@ const initialFlowerCard: FlowerCard = {
       { type: FLOWER_PRESETS.babysBreath.type, count: 12 },
     ],
   },
-  background: "ivory",
+  background: "blush",
 };
 
 type FlowerCardContextValue = {
