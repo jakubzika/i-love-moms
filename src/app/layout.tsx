@@ -4,6 +4,7 @@ import "./globals.css";
 import { CopilotKit } from "@copilotkit/react-core";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,6 +56,12 @@ export default function RootLayout({
         >
           {children}
         </CopilotKit>
+        <Script
+          defer
+          src="https://analytics.jakubzika.com/script.js"
+          data-website-id="4fe7251c-18bf-4bcf-8516-27ee39a0476b"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
