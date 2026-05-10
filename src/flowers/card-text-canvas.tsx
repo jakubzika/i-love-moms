@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { layoutWithLines, prepareWithSegments } from "@chenglou/pretext";
 import { BACKGROUND_PRESETS } from "./backgrounds";
 import { FONT_PAIRINGS, type FlowerCard } from "./schema";
@@ -9,7 +9,7 @@ import { FONT_PAIRINGS, type FlowerCard } from "./schema";
  * Pretext for layout (correct line-breaks, glyph-accurate widths) and
  * the browser's Canvas2D engine for drawing. The result is identical
  * pixels whether displayed live or composited into a download. */
-export function CardTextCanvas({
+export const CardTextCanvas = memo(function CardTextCanvas({
   card,
   width,
   height,
@@ -28,22 +28,46 @@ export function CardTextCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     let cancelled = false;
-    // Wait for fonts to be ready so the first paint isn't with fallbacks.
-    document.fonts.ready.then(() => {
+
+    // Set the canvas's drawing-buffer size imperatively. Doing it as a
+    // JSX attribute would cause SSR hydration mismatch because
+    // window.devicePixelRatio is unavailable on the server.
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+
+    // Canvas2D resolves font-family by NAME against the document's
+    // currently-loaded fonts. CSS @import declares them, but browsers
+    // only fetch the .woff2 once a real DOM node uses it. Force the load.
+    const pairing = FONT_PAIRINGS[card.content.fontPairing];
+    const fontsToLoad = [
+      `700 16px "${pairing.titleFamily}"`,
+      `400 16px "${pairing.titleFamily}"`,
+      `400 16px "${pairing.bodyFamily}"`,
+      `italic 400 16px "${pairing.bodyFamily}"`,
+    ];
+
+    const draw = () => {
       if (cancelled) return;
       drawCardText(canvas, card, width, height);
+    };
+
+    Promise.all(
+      fontsToLoad.map((f) =>
+        document.fonts.load(f).catch(() => null),
+      ),
+    ).then(() => {
+      draw();
+      document.fonts.ready.then(draw);
     });
     return () => {
       cancelled = true;
     };
   }, [card, width, height]);
 
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1;
   return (
     <canvas
       ref={canvasRef}
-      width={Math.round(width * dpr)}
-      height={Math.round(height * dpr)}
       className={className}
       style={{
         width,
@@ -52,7 +76,7 @@ export function CardTextCanvas({
       }}
     />
   );
-}
+});
 
 /** Pure draw function — exported so the download path can run it on a
  * larger output canvas at any DPR without going through React. */

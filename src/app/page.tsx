@@ -19,6 +19,7 @@ import {
   type FlowerType,
   type FontPairing,
 } from "@/flowers/schema";
+import { useViewportRoute } from "@/lib/use-viewport-route";
 import { Download, Minus, Plus, Shuffle, Wrench } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -147,6 +148,7 @@ const PACKING_PRESETS: PackingPreset[] = [
 ];
 
 export default function BuilderPage() {
+  const ready = useViewportRoute("desktop");
   const [title, setTitle] = useState("Happy Mother's Day");
   const [body, setBody] = useState(
     "Thank you for everything, Mom — today and every day.",
@@ -301,6 +303,8 @@ export default function BuilderPage() {
   };
 
   const bgSpec = BACKGROUND_PRESETS[background];
+
+  if (!ready) return <main className="min-h-screen bg-neutral-100" />;
 
   return (
     <main className="relative min-h-screen">

@@ -2,7 +2,7 @@
 
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Color, Quaternion, Vector3 } from "three";
 import { BACKGROUND_PRESETS, getBackgroundCss } from "./backgrounds";
 import { CARD_SIZE } from "./constants";
@@ -550,18 +550,11 @@ function buildRecipe(flower: Flower, rand: () => number): FlowerRecipe {
   }
 }
 
-let __headRecipeCount = 0;
 export function FlowerHead({ flower }: { flower: Flower }) {
   const override = (flower as Flower & { __scaleOverride?: number })
     .__scaleOverride;
   const scale = override ?? sizeScale(flower.size);
   const recipe = useMemo(() => {
-    __headRecipeCount++;
-    console.log(
-      "[perf] head recipe",
-      __headRecipeCount,
-      flower.type,
-    );
     const seed = hashSeed(`${flower.type}:${flower.color}`);
     const rand = mulberry32(seed);
     return buildRecipe(flower, rand);
@@ -601,9 +594,6 @@ export function FlowerHead({ flower }: { flower: Flower }) {
   );
 }
 
-// Module-level counter for stem rebuilds — useful to see whether a tiny
-// state change is causing all N stems to recompute their tube geometry.
-let __stemBuildCount = 0;
 function BendableStem({
   base,
   head,
@@ -618,8 +608,6 @@ function BendableStem({
   seed: number;
 }) {
   const { curve, stemRadius, quaternion, stemColor } = useMemo(() => {
-    __stemBuildCount++;
-    console.log("[perf] stem build", __stemBuildCount, "seed=" + seed);
     const c = makeBendableStemCurve(base, head, seed);
     const rand = mulberry32(seed);
     const radius = 0.009 + rand() * 0.006;
@@ -686,23 +674,23 @@ function BendableStem({
   );
 }
 
-function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions }) {
-  // Push riso uniforms to the global shared store. Mutates uniforms directly
-  // on every cached material — no rebuild, no recompile.
+/** Pure visual layer: only the bouquet slice + options. Wrapped in
+ * React.memo so unrelated card changes (text, fontPairing, background)
+ * do not cause the WebGL scene to even reconcile. */
+const Bouquet = memo(function Bouquet({
+  bouquet,
+  options,
+}: {
+  bouquet: FlowerCard["bouquet"];
+  options?: BouquetOptions;
+}) {
   useEffect(() => {
     if (options?.riso) setRisoUniforms(options.riso);
   }, [options?.riso]);
 
-  // Render counter — logs every Bouquet render so we can see how often
-  // the whole 3D scene wants to rebuild on parameter changes.
-  const renderCount = useRef(0);
-  renderCount.current++;
-  console.log("[perf] Bouquet render", renderCount.current);
-
   const expanded = useMemo(
     () => {
-      console.time("[perf] Bouquet.expanded");
-      const out = (card.bouquet?.flowers ?? []).flatMap((entry, ei) =>
+      const out = (bouquet?.flowers ?? []).flatMap((entry, ei) =>
         Array.from({ length: Math.max(1, entry.count) }, (_, qi) => {
           const flower = defaultFlower(entry.type);
           const sizeOverride = options?.perFlowerScale?.[entry.type];
@@ -717,12 +705,9 @@ function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions
           };
         }),
       );
-      console.timeEnd("[perf] Bouquet.expanded");
       return out;
     },
-    // Depend only on the bouquet field, NOT the whole card. Title/body
-    // changes don't affect flower placement.
-    [card.bouquet, options?.perFlowerScale],
+    [bouquet, options?.perFlowerScale],
   );
 
   const baseY = options?.baseY ?? 1.6;
@@ -788,9 +773,9 @@ function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions
         : null}
     </group>
   );
-}
+});
 
-export function FlowerCardPreview({
+export const FlowerCardPreview = memo(function FlowerCardPreview({
   card,
   bouquetOptions,
   size,
@@ -842,7 +827,7 @@ export function FlowerCardPreview({
         />
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 8, 5]} intensity={1.1} />
-        <Bouquet card={card} options={bouquetOptions} />
+        <Bouquet bouquet={card.bouquet} options={bouquetOptions} />
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, -0.26, 0]}
@@ -876,7 +861,7 @@ export function FlowerCardPreview({
       />
     </div>
   );
-}
+});
 
 export const FlowerRender = () => {
   return <div className="w-full h-full bg-pink-400">KYTKA</div>;
