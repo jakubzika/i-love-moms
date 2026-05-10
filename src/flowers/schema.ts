@@ -27,6 +27,8 @@ export const BackgroundPresetSchema = z.enum([
   "midnight",
   "buttercream",
   "rose-quartz",
+  "white",
+  "black",
 ]);
 export type BackgroundPreset = z.infer<typeof BackgroundPresetSchema>;
 

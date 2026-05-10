@@ -29,6 +29,7 @@
     "@rjsf/core": "^6.5.2",
     "@rjsf/utils": "^6.5.2",
     "@rjsf/validator-ajv8": "^6.5.2",
+    "better-react-mathjax": "^3.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "leva": "^0.10.1",

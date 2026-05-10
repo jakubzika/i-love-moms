@@ -157,35 +157,60 @@ function drawCardText(
   const bgSpec = BACKGROUND_PRESETS[card.background];
 
   const padding = 20 * scale;
-  const top = h - h * 0.33;
   const x = padding;
   const maxW = w - padding * 2;
-  let y = top + padding;
 
   ctx.fillStyle = bgSpec.foreground;
   ctx.textBaseline = "top";
 
-  // Title
   const titleSize = 30 * scale;
-  ctx.font = `700 ${titleSize}px "${pairing.titleFamily}", serif`;
-  y = wrapText(ctx, card.content.title, x, y, maxW, titleSize * 1.1);
-
-  // Body
-  y += 8 * scale;
   const bodySize = 16 * scale;
-  ctx.font = `400 ${bodySize}px "${pairing.bodyFamily}", sans-serif`;
+  const sigSize = 14 * scale;
+  const titleFont = `700 ${titleSize}px "${pairing.titleFamily}", serif`;
+  const bodyFont = `400 ${bodySize}px "${pairing.bodyFamily}", sans-serif`;
+  const sigFont = `italic 400 ${sigSize}px "${pairing.bodyFamily}", sans-serif`;
+
+  // Pass 1: measure total height
+  let totalH = 0;
+  ctx.font = titleFont;
+  totalH += wrapText(ctx, card.content.title, 0, 0, maxW, titleSize * 1.1, true);
+  totalH += 8 * scale;
+  ctx.font = bodyFont;
   for (const line of card.content.body.split("\n")) {
-    y = wrapText(ctx, line, x, y, maxW, bodySize * 1.5);
+    totalH += wrapText(ctx, line, 0, 0, maxW, bodySize * 1.5, true);
+  }
+  if (card.content.signature) {
+    totalH += 6 * scale;
+    ctx.font = sigFont;
+    totalH += wrapText(
+      ctx,
+      card.content.signature,
+      0,
+      0,
+      maxW,
+      sigSize * 1.4,
+      true,
+    );
   }
 
-  // Signature
+  // Pass 2: paint, bottom-aligned
+  let y = h - padding - totalH;
+
+  ctx.font = titleFont;
+  y = wrapText(ctx, card.content.title, x, y, maxW, titleSize * 1.1, false);
+
+  y += 8 * scale;
+  ctx.font = bodyFont;
+  for (const line of card.content.body.split("\n")) {
+    y = wrapText(ctx, line, x, y, maxW, bodySize * 1.5, false);
+  }
+
   if (card.content.signature) {
     y += 6 * scale;
-    const sigSize = 14 * scale;
-    ctx.font = `italic 400 ${sigSize}px "${pairing.bodyFamily}", sans-serif`;
+    ctx.font = sigFont;
     const prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = 0.85;
-    wrapText(ctx, card.content.signature, x, y, maxW, sigSize * 1.4);
+    wrapText(ctx, card.content.signature, x, y, maxW, sigSize * 1.4, false);
     ctx.globalAlpha = prevAlpha;
   }
 }
@@ -197,6 +222,7 @@ function wrapText(
   y: number,
   maxWidth: number,
   lineHeight: number,
+  dryRun = false,
 ): number {
   const words = text.split(/\s+/);
   let line = "";
@@ -204,7 +230,7 @@ function wrapText(
   for (const word of words) {
     const test = line ? line + " " + word : word;
     if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, cursor);
+      if (!dryRun) ctx.fillText(line, x, cursor);
       cursor += lineHeight;
       line = word;
     } else {
@@ -212,8 +238,8 @@ function wrapText(
     }
   }
   if (line) {
-    ctx.fillText(line, x, cursor);
+    if (!dryRun) ctx.fillText(line, x, cursor);
     cursor += lineHeight;
   }
-  return cursor;
+  return dryRun ? cursor - y : cursor;
 }

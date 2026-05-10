@@ -322,6 +322,10 @@ export type PackOptions = {
   domeHScale?: number;
   candidates?: number;
   headBoundsScale?: number;
+  /** Per-flower-type bounds multipliers, applied on top of headBoundsScale. */
+  perFlowerBounds?: Partial<
+    Record<FlowerType, { rx?: number; ry?: number; rz?: number }>
+  >;
 };
 
 export function packBouquet(
@@ -339,8 +343,17 @@ export function packBouquet(
   const rand = mulberry32(seed);
 
   const boundsScale = opts.headBoundsScale ?? 1;
+  const perFlower = opts.perFlowerBounds;
   const indexed = flowers.map((flower, index) => {
-    const bounds = headBounds(flower, boundsScale);
+    const base = headBounds(flower, boundsScale);
+    const ov = perFlower?.[flower.type];
+    const bounds: Ellipsoid = ov
+      ? {
+          rx: base.rx * (ov.rx ?? 1),
+          ry: base.ry * (ov.ry ?? 1),
+          rz: base.rz * (ov.rz ?? 1),
+        }
+      : base;
     return {
       flower,
       index,
@@ -469,24 +482,31 @@ export function makeBendableStemCurve(
   if (lateralLen > 0.001) lateral.normalize();
   else lateral.set(1, 0, 0);
 
+  // Early control: rises mostly upward but already drifts toward the head,
+  // avoiding the sharp kink the previous "pure up" point produced.
   const liftPoint = new Vector3()
     .copy(base)
-    .addScaledVector(up, len * 0.4 + rand() * 0.05);
+    .addScaledVector(dir, 0.18)
+    .addScaledVector(up, 0.18 * len + rand() * 0.03 * len);
 
+  // Mid control sits nicely above the straight base→head line so the curve
+  // sweeps as a smooth arc instead of dipping below it.
   const midPoint = new Vector3()
     .copy(base)
-    .addScaledVector(dir, 0.55)
-    .addScaledVector(up, 0.05 * len)
-    .addScaledVector(lateral, (rand() - 0.5) * 0.04 * lateralLen);
+    .addScaledVector(dir, 0.5)
+    .addScaledVector(up, 0.12 * len)
+    .addScaledVector(lateral, (rand() - 0.5) * 0.02 * lateralLen);
 
+  // Approach the head straight on (along dir) so the tip doesn't whip.
   const approachPoint = new Vector3()
     .copy(head)
-    .addScaledVector(dir, -0.1);
+    .addScaledVector(dir, -0.12);
 
   return new CatmullRomCurve3(
     [base, liftPoint, midPoint, approachPoint, head],
     false,
     "catmullrom",
-    0.5,
+    // Lower tension = gentler curve through control points (less swing).
+    0.3,
   );
 }

@@ -2,7 +2,7 @@
 
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Color, Quaternion, Vector3 } from "three";
 import { BACKGROUND_PRESETS, getBackgroundCss } from "./backgrounds";
 import { CARD_SIZE } from "./constants";
@@ -23,8 +23,44 @@ import {
   createRisoPetalMaterial,
   createRisoStemMaterial,
   getFlowerPalette,
+  setRisoUniforms,
+  type RisoOverrides,
 } from "./risoMaterial";
 import type { FlowerCard, FlowerType } from "./schema";
+
+export type FlowerBoundsOverride = {
+  /** Multiplier on rx (default 1). */
+  rx?: number;
+  /** Multiplier on ry (default 1). */
+  ry?: number;
+  /** Multiplier on rz (default 1). */
+  rz?: number;
+};
+
+export type BouquetOptions = {
+  /** Per-flower-type scale multiplier (1 = default). Lets you shrink/grow specific flowers. */
+  perFlowerScale?: Partial<Record<FlowerType, number>>;
+  /** Per-flower-type collision-box (head bounds) multipliers. */
+  perFlowerBounds?: Partial<Record<FlowerType, FlowerBoundsOverride>>;
+  /** Stem base Y position. */
+  baseY?: number;
+  /** Final scale fits the bouquet so its dome radius hits this target. */
+  targetDomeR?: number;
+  /** Padding between flower heads in the packing pass. */
+  pad?: number;
+  /** Scales the auto-computed dome radius. */
+  domeRScale?: number;
+  /** Scales the dome height (relative to radius). */
+  domeHScale?: number;
+  /** Multiplies each flower's head ellipsoid bounds (global). */
+  headBoundsScale?: number;
+  /** Random seed for placement. */
+  seed?: number;
+  /** Show wireframe ellipsoid debug overlays at each flower's collision bounds. */
+  showBounds?: boolean;
+  /** Global riso shader overrides applied to petals, centers, and stems. */
+  riso?: RisoOverrides;
+};
 
 type PetalLayer = {
   count: number;
@@ -155,27 +191,50 @@ function FlowerCenter({
   count,
   height,
   scale,
+  palette,
 }: {
   color: string;
   radius: number;
   count: number;
   height: number;
   scale: number;
+  palette: ReturnType<typeof getFlowerPalette>;
 }) {
   const seeds = useMemo(
     () => phyllotaxisDisc(count, radius / Math.sqrt(count + 1)),
     [count, radius],
   );
+  const discMaterial = useMemo(
+    () =>
+      createRisoPetalMaterial({
+        baseColor: color,
+        palette,
+        doubleSide: false,
+      }),
+    [color, palette],
+  );
+  const seedColor = shade(color, -0.15);
+  const seedMaterial = useMemo(
+    () =>
+      createRisoPetalMaterial({
+        baseColor: seedColor,
+        palette,
+        doubleSide: false,
+      }),
+    [seedColor, palette],
+  );
   return (
     <group scale={scale}>
-      <mesh>
+      <mesh material={discMaterial}>
         <cylinderGeometry args={[radius, radius * 0.95, height, 32]} />
-        <meshStandardMaterial color={color} roughness={0.7} />
       </mesh>
       {seeds.map(({ x, z }, i) => (
-        <mesh key={i} position={[x, height / 2 + 0.005, z]}>
+        <mesh
+          key={i}
+          position={[x, height / 2 + 0.005, z]}
+          material={seedMaterial}
+        >
           <sphereGeometry args={[Math.max(0.012, radius * 0.06), 6, 6]} />
-          <meshStandardMaterial color={shade(color, -0.15)} roughness={0.8} />
         </mesh>
       ))}
     </group>
@@ -348,8 +407,8 @@ function buildRecipe(flower: Flower, rand: () => number): FlowerRecipe {
         layers: [
           {
             count: 7,
-            radius: 0.14,
-            tilt: -0.6,
+            radius: 0.04,
+            tilt: -0.5,
             petal: {
               length: 0.12,
               maxWidth: 0.07,
@@ -490,7 +549,9 @@ function buildRecipe(flower: Flower, rand: () => number): FlowerRecipe {
 }
 
 export function FlowerHead({ flower }: { flower: Flower }) {
-  const scale = sizeScale(flower.size);
+  const override = (flower as Flower & { __scaleOverride?: number })
+    .__scaleOverride;
+  const scale = override ?? sizeScale(flower.size);
   const recipe = useMemo(() => {
     const seed = hashSeed(`${flower.type}:${flower.color}`);
     const rand = mulberry32(seed);
@@ -501,6 +562,8 @@ export function FlowerHead({ flower }: { flower: Flower }) {
     () => hashSeed(`${flower.type}:${flower.color}`),
     [flower.type, flower.color],
   );
+
+  const palette = useMemo(() => getFlowerPalette(flower.type), [flower.type]);
 
   return (
     <group>
@@ -522,6 +585,7 @@ export function FlowerHead({ flower }: { flower: Flower }) {
           count={recipe.centerCount ?? 30}
           height={recipe.centerHeight ?? 0.04}
           scale={1}
+          palette={palette}
         />
       )}
     </group>
@@ -595,12 +659,23 @@ function BendableStem({
   );
 }
 
-function Bouquet({ card }: { card: FlowerCard }) {
+function Bouquet({ card, options }: { card: FlowerCard; options?: BouquetOptions }) {
+  // Push riso uniforms to the global shared store. Mutates uniforms directly
+  // on every cached material — no rebuild, no recompile.
+  useEffect(() => {
+    if (options?.riso) setRisoUniforms(options.riso);
+  }, [options?.riso]);
+
   const expanded = useMemo(
     () =>
       (card.bouquet?.flowers ?? []).flatMap((entry, ei) =>
         Array.from({ length: Math.max(1, entry.count) }, (_, qi) => {
           const flower = defaultFlower(entry.type);
+          const sizeOverride = options?.perFlowerScale?.[entry.type];
+          if (sizeOverride !== undefined) {
+            (flower as Flower & { __scaleOverride?: number }).__scaleOverride =
+              sizeOverride;
+          }
           return {
             flower,
             key: `${ei}-${qi}`,
@@ -608,19 +683,35 @@ function Bouquet({ card }: { card: FlowerCard }) {
           };
         }),
       ),
-    [card],
+    [card, options?.perFlowerScale],
   );
 
-  const baseY = 1.6;
-  const targetDomeR = 4.6;
+  const baseY = options?.baseY ?? 1.6;
+  const targetDomeR = options?.targetDomeR ?? 4.6;
   const { placements, domeR } = useMemo(() => {
-    const seed = hashSeed(`bouquet:${expanded.length}`);
+    const seed = hashSeed(`bouquet:${expanded.length}:${options?.seed ?? 0}`);
     return packBouquet(
       expanded.map((e) => e.flower),
-      Math.floor(seed * 1e9),
-      { baseY },
+      Math.floor(seed * 1e9) + (options?.seed ?? 0),
+      {
+        baseY,
+        pad: options?.pad,
+        domeRScale: options?.domeRScale,
+        domeHScale: options?.domeHScale,
+        headBoundsScale: options?.headBoundsScale,
+        perFlowerBounds: options?.perFlowerBounds,
+      },
     );
-  }, [expanded]);
+  }, [
+    expanded,
+    baseY,
+    options?.pad,
+    options?.domeRScale,
+    options?.domeHScale,
+    options?.headBoundsScale,
+    options?.perFlowerBounds,
+    options?.seed,
+  ]);
 
   const scale = Math.min(4, Math.max(0.6, targetDomeR / Math.max(domeR, 0.2)));
 
@@ -636,11 +727,37 @@ function Bouquet({ card }: { card: FlowerCard }) {
           seed={Math.floor(expanded[i].seed * 1e9)}
         />
       ))}
+      {options?.showBounds
+        ? placements.map((p, i) => (
+            <group
+              key={`bounds-${expanded[i].key}`}
+              position={[p.head.x, p.head.y, p.head.z]}
+              scale={[p.bounds.rx, p.bounds.ry, p.bounds.rz]}
+            >
+              <mesh>
+                <sphereGeometry args={[1, 16, 12]} />
+                <meshBasicMaterial
+                  color="#3d7eff"
+                  transparent
+                  opacity={0.18}
+                  depthWrite={false}
+                  wireframe
+                />
+              </mesh>
+            </group>
+          ))
+        : null}
     </group>
   );
 }
 
-export function FlowerCardPreview({ card }: { card: FlowerCard }) {
+export function FlowerCardPreview({
+  card,
+  bouquetOptions,
+}: {
+  card: FlowerCard;
+  bouquetOptions?: BouquetOptions;
+}) {
   const backgroundCss = getBackgroundCss(card.background);
   return (
     <div
@@ -653,7 +770,6 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
       }}
     >
       <Canvas
-        shadows
         frameloop="demand"
         gl={{ preserveDrawingBuffer: true }}
         style={{ background: "transparent" }}
@@ -666,12 +782,11 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
           far={50}
         />
         <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 8, 5]} intensity={1.1} castShadow />
-        <Bouquet card={card} />
+        <directionalLight position={[5, 8, 5]} intensity={1.1} />
+        <Bouquet card={card} options={bouquetOptions} />
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, -0.26, 0]}
-          receiveShadow
         >
           {/* <planeGeometry args={[20, 20]} /> */}
           <meshStandardMaterial color="#ffffff" />
@@ -692,7 +807,7 @@ export function FlowerCardPreview({ card }: { card: FlowerCard }) {
         />
       </Canvas>
       <div
-        className={`pairing-${card.content.fontPairing} max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 p-5 pointer-events-none overflow-hidden flex flex-col gap-3`}
+        className={`pairing-${card.content.fontPairing} max-w-none absolute left-1/2 bottom-0 -translate-x-1/2 p-5 pointer-events-none overflow-hidden flex flex-col justify-end gap-3`}
         style={{
           width: "100%",
           height: "33%",

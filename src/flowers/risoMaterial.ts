@@ -79,8 +79,6 @@ float riso_quant(float v, vec2 p) {
   return clamp(floor((v + d) * uRisoPosterize) / uRisoPosterize, 0.0, 1.0);
 }
 
-// How much of inkI does this color need? Project (paper - color) onto
-// (paper - inkI) — the larger the projection, the more ink is needed.
 float riso_inkStrength(vec3 color, vec3 ink) {
   vec3 deficit = uRisoPaper - color;
   vec3 axis = uRisoPaper - ink;
@@ -94,7 +92,6 @@ vec3 riso_apply(vec3 inputColor, vec2 fragPx) {
     vec3 ink = uRisoInks[i];
     float s = riso_inkStrength(inputColor, ink);
 
-    // per-ink screen offset (misregistration)
     float a = float(i) * 2.094;
     vec2 offset = vec2(cos(a), sin(a)) * uRisoMisreg;
     vec2 gp = (fragPx + offset) / max(uRisoGrainScale, 0.5);
@@ -103,34 +100,64 @@ vec3 riso_apply(vec3 inputColor, vec2 fragPx) {
     float strength = s + (n - 0.5) * uRisoGrain;
     float q = riso_quant(strength, floor(fragPx) + float(i) * 7.0);
 
-    // multiplicative overprint
     col *= mix(vec3(1.0), ink / max(uRisoPaper, vec3(0.001)), q);
   }
   return col;
 }
 `;
 
-const materialCache = new WeakMap<MeshStandardMaterial, any>();
-
-export function createRisoPetalMaterial({
-  baseColor,
-  palette,
-  grain = 0.55,
-  grainScale = 1.6,
-  misregistration = 1.4,
-  posterize = 4,
-  ditherStrength = 0.6,
-  doubleSide = true,
-}: {
-  baseColor: string;
-  palette: RisoPalette;
+export type RisoOverrides = {
   grain?: number;
   grainScale?: number;
   misregistration?: number;
   posterize?: number;
   ditherStrength?: number;
+};
+
+// Single shared uniform set. Mutating these values updates every cached
+// material in place — no rebuild, no recompile.
+const sharedUniforms = {
+  uRisoGrain: { value: 0.55 },
+  uRisoGrainScale: { value: 1.6 },
+  uRisoMisreg: { value: 1.4 },
+  uRisoPosterize: { value: 4 },
+  uRisoDither: { value: 0.6 },
+};
+
+export function setRisoUniforms(overrides: RisoOverrides) {
+  if (overrides.grain !== undefined) sharedUniforms.uRisoGrain.value = overrides.grain;
+  if (overrides.grainScale !== undefined) sharedUniforms.uRisoGrainScale.value = overrides.grainScale;
+  if (overrides.misregistration !== undefined) sharedUniforms.uRisoMisreg.value = overrides.misregistration;
+  if (overrides.posterize !== undefined) sharedUniforms.uRisoPosterize.value = overrides.posterize;
+  if (overrides.ditherStrength !== undefined) sharedUniforms.uRisoDither.value = overrides.ditherStrength;
+}
+
+// Cache: one material per (baseColor, palette identity, doubleSide).
+const materialKeyCache = new Map<string, MeshStandardMaterial>();
+
+function paletteKey(palette: RisoPalette): string {
+  return `${palette.paper}|${palette.inks.join(",")}`;
+}
+
+export function createRisoPetalMaterial({
+  baseColor,
+  palette,
+  doubleSide = true,
+}: {
+  baseColor: string;
+  palette: RisoPalette;
   doubleSide?: boolean;
+  // Legacy params accepted for back-compat but ignored — uniforms are global.
+  grain?: number;
+  grainScale?: number;
+  misregistration?: number;
+  posterize?: number;
+  ditherStrength?: number;
 }): MeshStandardMaterial {
+  const key = `${baseColor}|${paletteKey(palette)}|${doubleSide ? "ds" : "fs"}`;
+  const cached = materialKeyCache.get(key);
+  if (cached) return cached;
+
   const inks = (palette.inks.length === 3
     ? palette.inks
     : [...palette.inks, ...FALLBACK.inks].slice(0, 3)
@@ -146,16 +173,17 @@ export function createRisoPetalMaterial({
   });
 
   mat.onBeforeCompile = (shader) => {
+    // Constants for this material (palette/inks)
     shader.uniforms.uRisoInks = { value: inks };
     shader.uniforms.uRisoPaper = { value: paperColor };
-    shader.uniforms.uRisoGrain = { value: grain };
-    shader.uniforms.uRisoGrainScale = { value: grainScale };
-    shader.uniforms.uRisoMisreg = { value: misregistration };
-    shader.uniforms.uRisoPosterize = { value: posterize };
-    shader.uniforms.uRisoDither = { value: ditherStrength };
+    // Mutable globals (shared across all cached materials)
+    shader.uniforms.uRisoGrain = sharedUniforms.uRisoGrain;
+    shader.uniforms.uRisoGrainScale = sharedUniforms.uRisoGrainScale;
+    shader.uniforms.uRisoMisreg = sharedUniforms.uRisoMisreg;
+    shader.uniforms.uRisoPosterize = sharedUniforms.uRisoPosterize;
+    shader.uniforms.uRisoDither = sharedUniforms.uRisoDither;
 
     shader.fragmentShader = RISO_FRAG_PRELUDE + shader.fragmentShader;
-
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <dithering_fragment>",
       `
@@ -163,11 +191,9 @@ export function createRisoPetalMaterial({
         gl_FragColor.rgb = riso_apply(gl_FragColor.rgb, gl_FragCoord.xy);
       `,
     );
-
-    materialCache.set(mat, shader);
   };
 
-  mat.needsUpdate = true;
+  materialKeyCache.set(key, mat);
   return mat;
 }
 
@@ -180,15 +206,14 @@ export const STEM_PALETTE: RisoPalette = {
   paper: "#fbf3e0",
 };
 
-export function createRisoStemMaterial(baseColor = "#a8c98a"): MeshStandardMaterial {
+export function createRisoStemMaterial(
+  baseColor = "#a8c98a",
+  // Accepted for back-compat; ignored — uniforms are global now.
+  _overrides: RisoOverrides = {},
+): MeshStandardMaterial {
   return createRisoPetalMaterial({
     baseColor,
     palette: STEM_PALETTE,
-    grain: 0.7,
-    grainScale: 1.0,
-    misregistration: 1.6,
-    posterize: 3,
-    ditherStrength: 0.8,
     doubleSide: false,
   });
 }

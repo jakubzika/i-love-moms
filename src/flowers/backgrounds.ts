@@ -65,6 +65,20 @@ export const BACKGROUND_PRESETS: Record<BackgroundPreset, BackgroundPresetSpec> 
     css: "linear-gradient(135deg, #f7d6e0 0%, #e8b4c8 100%)",
     foreground: "#4a1f33",
   },
+  white: {
+    id: "white",
+    title: "White",
+    description: "Pure paper white. Maximum clarity.",
+    css: "#ffffff",
+    foreground: "#111111",
+  },
+  black: {
+    id: "black",
+    title: "Black",
+    description: "Pure black. Bold and high-contrast.",
+    css: "#0a0a0a",
+    foreground: "#f5f1e6",
+  },
 };
 
 export const DEFAULT_BACKGROUND: BackgroundPreset = "ivory";
