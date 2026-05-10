@@ -532,7 +532,7 @@ function ColorPanel({
 }) {
   return (
     <PanelScroll>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {ALL_BACKGROUND_PRESETS.map((preset) => {
           const spec = BACKGROUND_PRESETS[preset];
           const active = background === preset;
@@ -551,10 +551,8 @@ function ColorPanel({
               <div
                 className="aspect-square w-full rounded-lg border border-black/5 shadow-inner"
                 style={{ background: spec.css }}
+                title={spec.title}
               />
-              <div className="mt-1 text-[10px] text-center font-medium text-neutral-600 truncate">
-                {spec.title}
-              </div>
             </button>
           );
         })}
