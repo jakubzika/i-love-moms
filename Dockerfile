@@ -10,8 +10,10 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Use pnpm via corepack (project has pnpm-lock.yaml).
-RUN corepack enable
+# Use pnpm via corepack. Pin to a version that supports Node 20 — pnpm 11
+# requires Node 22+, but the lockfile was generated with pnpm 10.x which is
+# fine on Node 20.
+RUN corepack enable && corepack prepare pnpm@10.16.0 --activate
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
