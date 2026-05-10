@@ -2,7 +2,7 @@ import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
 
 import { CopilotKit } from "@copilotkit/react-core";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import Script from "next/script";
 
@@ -25,6 +25,16 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Pretty Bouquet",
   description: "Design a Mother's Day flower card.",
+};
+
+// `maximum-scale=1` is what actually stops iOS Safari from auto-zooming
+// when an input gets focus, even though our inputs are already 16px+.
+// The 16px-min CSS rule is a belt; this is the suspenders.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

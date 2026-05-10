@@ -259,7 +259,7 @@ function PreviewPane({
       const parent = el.parentElement;
       const maxW = parent ? parent.clientWidth - 32 : el.clientWidth;
       if (!maxW) return;
-      const maxH = window.innerHeight * 0.7;
+      const maxH = window.innerHeight * 0.63;
       const widthFromHeight = maxH / aspect;
       const w = Math.min(maxW, widthFromHeight, CARD_SIZE.width);
       const nextW = Math.round(w);
@@ -393,7 +393,6 @@ function TitlePanel({
         value={title}
         onChange={(e) => onTitle(e.target.value)}
         onKeyDown={preventEnter}
-        autoFocus
         placeholder="Happy Mother's Day"
         className={`${FIELD_CLASS} text-2xl font-medium leading-tight`}
       />
@@ -413,7 +412,6 @@ function BodyPanel({
       <textarea
         value={body}
         onChange={(e) => onBody(e.target.value)}
-        autoFocus
         placeholder="A short message for Mom…"
         className={`${FIELD_CLASS} text-base leading-relaxed`}
       />
@@ -434,7 +432,6 @@ function SignPanel({
         value={signature}
         onChange={(e) => onSignature(e.target.value)}
         onKeyDown={preventEnter}
-        autoFocus
         placeholder="— with all my love"
         className={`${FIELD_CLASS} text-lg italic leading-tight`}
       />
