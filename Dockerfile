@@ -1,24 +1,27 @@
-# Build stage
+# Mother's Day Card — Next.js standalone build for Dokploy / any container host.
+#
+# We build the whole repo as-is. The chat surface and the mastra-backed
+# /api/copilotkit route are present in the bundle but unused: the index
+# page no longer links to them, and unset env vars make the agent route
+# return errors if anybody finds it. No source deletion, no surprises.
+
+# ─── Stage 1: build ─────────────────────────────────────────────────────────
 FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Enable corepack for pnpm support
+# Use pnpm via corepack (project has pnpm-lock.yaml).
 RUN corepack enable
 
-# Copy package files
-COPY package.json ./
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Install dependencies (no lockfile in this starter)
-RUN npm install
-
-# Copy source code
 COPY . .
 
-# Build the Next.js application
-RUN npm run build
+# next.config.ts already sets `output: "standalone"`.
+RUN pnpm run build
 
-# Production stage
+# ─── Stage 2: runtime ───────────────────────────────────────────────────────
 FROM node:20-slim AS runner
 
 WORKDIR /app
@@ -27,7 +30,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Copy the standalone build output
+# Standalone output bundles the minimum node_modules it needs.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public

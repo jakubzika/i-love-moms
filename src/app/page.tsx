@@ -17,8 +17,7 @@ import {
   type FlowerType,
   type FontPairing,
 } from "@/flowers/schema";
-import { Download, Minus, Plus, Shuffle, Sparkles, Wrench } from "lucide-react";
-import Link from "next/link";
+import { Download, Minus, Plus, Shuffle, Wrench } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 const FLOWER_LABELS: Record<FlowerType, string> = {

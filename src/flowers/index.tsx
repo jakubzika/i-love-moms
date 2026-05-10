@@ -20,6 +20,7 @@ import {
   type PetalShape,
 } from "./generative";
 import {
+  STEM_PALETTE,
   createRisoPetalMaterial,
   createRisoStemMaterial,
   getFlowerPalette,
@@ -636,6 +637,19 @@ function BendableStem({
     [stemColor],
   );
 
+  const leafMaterial = useMemo(
+    () =>
+      createRisoPetalMaterial({
+        baseColor: stemColor,
+        palette: STEM_PALETTE,
+        doubleSide: true,
+      }),
+    [stemColor],
+  );
+  // Leaves use the green stem palette so the riso projection keeps them
+  // green; double-sided because leaves are thin and need to read from
+  // either side.
+
   const leaves = useMemo(() => buildStemLeaves(curve, seed), [curve, seed]);
 
   return (
@@ -649,7 +663,7 @@ function BendableStem({
           geometry={l.geometry}
           position={l.position}
           quaternion={l.quaternion}
-          material={material}
+          material={leafMaterial}
         />
       ))}
       <group position={[head.x, head.y, head.z]} quaternion={quaternion}>
