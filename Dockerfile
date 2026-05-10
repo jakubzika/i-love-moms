@@ -18,6 +18,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
+
 # next.config.ts already sets `output: "standalone"`.
 RUN pnpm run build
 
