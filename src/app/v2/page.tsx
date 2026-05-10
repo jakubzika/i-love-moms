@@ -459,6 +459,17 @@ function FullHeightField({
   );
 }
 
+/** Drawer panel layout: body scrolls within its own region. Each panel
+ * is height-bounded by the drawer column above the dock, and panel
+ * content scrolls inside without affecting the page or preview. */
+function PanelScroll({ children }: { children: ReactNode }) {
+  return (
+    <div className="h-full min-h-0 overflow-y-auto px-3 pt-3 pb-3">
+      {children}
+    </div>
+  );
+}
+
 function FontPanel({
   fontPairing,
   onFontPairing,
@@ -467,8 +478,8 @@ function FontPanel({
   onFontPairing: (p: FontPairing) => void;
 }) {
   return (
-    <div className="overflow-y-auto h-full">
-      <div className="flex flex-col gap-2 px-3 pt-3 pb-3">
+    <PanelScroll>
+      <div className="flex flex-col gap-2">
         {ALL_FONT_PAIRINGS.map((id) => {
           const spec = FONT_PAIRINGS[id];
           const active = fontPairing === id;
@@ -508,7 +519,7 @@ function FontPanel({
           );
         })}
       </div>
-    </div>
+    </PanelScroll>
   );
 }
 
@@ -520,8 +531,8 @@ function ColorPanel({
   onBackground: (b: BackgroundPreset) => void;
 }) {
   return (
-    <div className="overflow-y-auto h-full">
-      <div className="grid grid-cols-3 gap-2 px-3 pt-3 pb-3">
+    <PanelScroll>
+      <div className="grid grid-cols-3 gap-2">
         {ALL_BACKGROUND_PRESETS.map((preset) => {
           const spec = BACKGROUND_PRESETS[preset];
           const active = background === preset;
@@ -548,7 +559,7 @@ function ColorPanel({
           );
         })}
       </div>
-    </div>
+    </PanelScroll>
   );
 }
 
@@ -560,8 +571,8 @@ function BouquetPanel({
   onCount: (t: FlowerType, v: number) => void;
 }) {
   return (
-    <div className="overflow-y-auto h-full">
-      <div className="grid grid-cols-2 gap-2 px-3 pt-3 pb-3">
+    <PanelScroll>
+      <div className="grid grid-cols-2 gap-2">
         {ALL_FLOWER_TYPES.map((type) => {
           const c = counts[type];
           const active = c > 0;
@@ -618,7 +629,7 @@ function BouquetPanel({
           );
         })}
       </div>
-    </div>
+    </PanelScroll>
   );
 }
 
@@ -636,48 +647,50 @@ function LayoutPanel({
   onFlowersInFront: (v: boolean) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0 px-3 pt-3 pb-3">
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto pb-1">
-        {PACKING_PRESETS.map((preset) => {
-          const active = activePreset === preset.id;
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => onPreset(preset)}
-              className={[
-                "rounded-2xl border px-4 py-3 text-left",
-                active
-                  ? "border-neutral-950 bg-neutral-950 text-white shadow-md"
-                  : "border-neutral-200/70 bg-white/60 hover:bg-white",
-              ].join(" ")}
-            >
-              <div className="text-sm font-medium">{preset.label}</div>
-            </button>
-          );
-        })}
-      </div>
-      <button
-        type="button"
-        onClick={onShuffle}
-        className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-2xl bg-neutral-950 text-white text-sm font-medium shadow-md"
-      >
-        <Shuffle className="size-4" />
-        Shuffle arrangement
-      </button>
-      <label className="flex items-center justify-between rounded-2xl border border-neutral-200/70 bg-white/60 px-4 py-3 cursor-pointer">
-        <div className="flex items-center gap-2">
-          <Layers className="size-4 text-neutral-600" />
-          <span className="text-sm">Flowers in front of text</span>
+    <PanelScroll>
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
+          {PACKING_PRESETS.map((preset) => {
+            const active = activePreset === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => onPreset(preset)}
+                className={[
+                  "rounded-2xl border px-4 py-3 text-left",
+                  active
+                    ? "border-neutral-950 bg-neutral-950 text-white shadow-md"
+                    : "border-neutral-200/70 bg-white/60 hover:bg-white",
+                ].join(" ")}
+              >
+                <div className="text-sm font-medium">{preset.label}</div>
+              </button>
+            );
+          })}
         </div>
-        <input
-          type="checkbox"
-          checked={flowersInFront}
-          onChange={(e) => onFlowersInFront(e.target.checked)}
-          className="size-5 accent-neutral-950"
-        />
-      </label>
-    </div>
+        <button
+          type="button"
+          onClick={onShuffle}
+          className="w-full inline-flex items-center justify-center gap-2 px-3 py-3 rounded-2xl bg-neutral-950 text-white text-sm font-medium shadow-md"
+        >
+          <Shuffle className="size-4" />
+          Shuffle arrangement
+        </button>
+        <label className="flex items-center justify-between rounded-2xl border border-neutral-200/70 bg-white/60 px-4 py-3 cursor-pointer">
+          <div className="flex items-center gap-2">
+            <Layers className="size-4 text-neutral-600" />
+            <span className="text-sm">Flowers in front of text</span>
+          </div>
+          <input
+            type="checkbox"
+            checked={flowersInFront}
+            onChange={(e) => onFlowersInFront(e.target.checked)}
+            className="size-5 accent-neutral-950"
+          />
+        </label>
+      </div>
+    </PanelScroll>
   );
 }
 
