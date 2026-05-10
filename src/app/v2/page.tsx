@@ -21,6 +21,11 @@ import {
 } from "@/flowers/schema";
 import { useViewportRoute } from "@/lib/use-viewport-route";
 import {
+  randomBackground,
+  randomBouquetCounts,
+  randomSeed,
+} from "@/flowers/random";
+import {
   AlignLeft,
   Download,
   FileText,
@@ -34,6 +39,7 @@ import {
 } from "lucide-react";
 import {
   type ReactNode,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -166,6 +172,19 @@ export default function MobileEditorPage() {
     setDomeHScale(preset.domeHScale);
     setTargetDomeR(preset.targetDomeR);
   };
+
+  // Randomize bouquet + background + layout on every fresh mount. See
+  // the matching block in src/app/page.tsx for the SSR/hydration note.
+  // Effect runs once after mount; font is intentionally left at the
+  // user's chosen default.
+  useEffect(() => {
+    setCounts(randomBouquetCounts());
+    setBackground(randomBackground());
+    setBouquetSeed(randomSeed());
+    const preset =
+      PACKING_PRESETS[Math.floor(Math.random() * PACKING_PRESETS.length)];
+    applyPreset(preset);
+  }, []);
 
   const setCount = (type: FlowerType, value: number) => {
     setCounts((c) => ({ ...c, [type]: Math.max(0, Math.floor(value)) }));

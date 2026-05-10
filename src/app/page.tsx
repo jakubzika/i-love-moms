@@ -20,6 +20,11 @@ import {
   type FontPairing,
 } from "@/flowers/schema";
 import { useViewportRoute } from "@/lib/use-viewport-route";
+import {
+  randomBackground,
+  randomBouquetCounts,
+  randomSeed,
+} from "@/flowers/random";
 import { Download, Minus, Plus, Shuffle, Wrench } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -175,6 +180,25 @@ export default function BuilderPage() {
   const [bouquetSeed, setBouquetSeed] = useState(0);
   const [targetDomeR, setTargetDomeR] = useState(4.6);
   const [showBounds, setShowBounds] = useState(false);
+
+  // Randomize bouquet + background + layout on every fresh mount. Runs
+  // in an effect (not as a useState initializer) to avoid SSR/CSR
+  // hydration mismatch — server renders the deterministic defaults,
+  // then we shuffle once on the client. Font stays at the user's
+  // chosen default.
+  useEffect(() => {
+    setCounts(randomBouquetCounts());
+    setBackground(randomBackground());
+    setBouquetSeed(randomSeed());
+    const preset =
+      PACKING_PRESETS[Math.floor(Math.random() * PACKING_PRESETS.length)];
+    setActivePreset(preset.id);
+    setPad(preset.pad);
+    setDomeRScale(preset.domeRScale);
+    setDomeHScale(preset.domeHScale);
+    setHeadBoundsScale(preset.headBoundsScale);
+    setTargetDomeR(preset.targetDomeR);
+  }, []);
 
   const applyPreset = (preset: PackingPreset) => {
     setActivePreset(preset.id);
